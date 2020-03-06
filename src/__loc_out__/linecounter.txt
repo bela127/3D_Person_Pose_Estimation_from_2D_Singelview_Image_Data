@@ -1,0 +1,214 @@
+===============================================================================
+EXTENSION NAME : linecounter
+EXTENSION VERSION : 0.2.7
+-------------------------------------------------------------------------------
+count time : 2020-02-22 09:57:37
+count workspace : /home/bhb/Cloud/Code/Git/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/src
+total files : 36
+total code lines : 1802
+total comment lines : 40
+total blank lines : 547
+
+    statistics
+   |      extension|     total code|  total comment|    total blank|percent|
+   -------------------------------------------------------------------------
+   |            .py|           1769|             40|            546|     98|
+   |               |             10|              0|              0|   0.55|
+   |           .txt|             23|              0|              1|    1.3|
+   -------------------------------------------------------------------------
+demo_discret_sigmoid_test copy.py, code is 67, comment is 0, blank is 21.
+demo_discret_sigmoid_test.py, code is 23, comment is 0, blank is 8.
+demo_get_roi.py, code is 46, comment is 0, blank is 19.
+demo_locate_1d.py, code is 81, comment is 4, blank is 36.
+demo_locate_2d.py, code is 106, comment is 8, blank is 40.
+demo_locate_2d_custom_conv.py, code is 131, comment is 7, blank is 49.
+demo_locate_2d_multible (3. Kopie).py, code is 182, comment is 4, blank is 56.
+demo_locate_2d_multible (Kopie).py, code is 200, comment is 5, blank is 53.
+demo_locate_2d_multible (weitere Kopie).py, code is 166, comment is 4, blank is 51.
+demo_locate_2d_multible.py, code is 236, comment is 6, blank is 61.
+demo_roi.py, code is 40, comment is 0, blank is 16.
+demo_transform.py, code is 28, comment is 1, blank is 10.
+setup.py, code is 2, comment is 0, blank is 1.
+ShAReD_net.egg-info/dependency_links.txt, code is 0, comment is 0, blank is 1.
+ShAReD_net.egg-info/PKG-INFO, code is 10, comment is 0, blank is 0.
+ShAReD_net.egg-info/SOURCES.txt, code is 22, comment is 0, blank is 0.
+ShAReD_net.egg-info/top_level.txt, code is 1, comment is 0, blank is 0.
+ShAReD_Net/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/loader/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/transformer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/metrik/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/framework/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/base.py, code is 313, comment is 0, blank is 70.
+ShAReD_Net/model/modules/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/modules/base.py, code is 148, comment is 1, blank is 55.
+ShAReD_Net/training/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/augmentation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/loss/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/model.py, code is 0, comment is 0, blank is 0.
+===============================================================================
+===============================================================================
+EXTENSION NAME : linecounter
+EXTENSION VERSION : 0.2.7
+-------------------------------------------------------------------------------
+count time : 2020-02-22 09:57:47
+count workspace : /home/bhb/Cloud/Code/Git/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/src
+total files : 36
+total code lines : 1802
+total comment lines : 40
+total blank lines : 547
+
+    statistics
+   |      extension|     total code|  total comment|    total blank|percent|
+   -------------------------------------------------------------------------
+   |            .py|           1769|             40|            546|     98|
+   |               |             10|              0|              0|   0.55|
+   |           .txt|             23|              0|              1|    1.3|
+   -------------------------------------------------------------------------
+demo_discret_sigmoid_test copy.py, code is 67, comment is 0, blank is 21.
+demo_discret_sigmoid_test.py, code is 23, comment is 0, blank is 8.
+demo_get_roi.py, code is 46, comment is 0, blank is 19.
+demo_locate_1d.py, code is 81, comment is 4, blank is 36.
+demo_locate_2d.py, code is 106, comment is 8, blank is 40.
+demo_locate_2d_custom_conv.py, code is 131, comment is 7, blank is 49.
+demo_locate_2d_multible (3. Kopie).py, code is 182, comment is 4, blank is 56.
+demo_locate_2d_multible (Kopie).py, code is 200, comment is 5, blank is 53.
+demo_locate_2d_multible (weitere Kopie).py, code is 166, comment is 4, blank is 51.
+demo_locate_2d_multible.py, code is 236, comment is 6, blank is 61.
+demo_roi.py, code is 40, comment is 0, blank is 16.
+demo_transform.py, code is 28, comment is 1, blank is 10.
+setup.py, code is 2, comment is 0, blank is 1.
+ShAReD_net.egg-info/dependency_links.txt, code is 0, comment is 0, blank is 1.
+ShAReD_net.egg-info/PKG-INFO, code is 10, comment is 0, blank is 0.
+ShAReD_net.egg-info/SOURCES.txt, code is 22, comment is 0, blank is 0.
+ShAReD_net.egg-info/top_level.txt, code is 1, comment is 0, blank is 0.
+ShAReD_Net/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/loader/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/transformer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/metrik/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/framework/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/base.py, code is 313, comment is 0, blank is 70.
+ShAReD_Net/model/modules/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/modules/base.py, code is 148, comment is 1, blank is 55.
+ShAReD_Net/training/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/augmentation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/loss/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/model.py, code is 0, comment is 0, blank is 0.
+===============================================================================
+===============================================================================
+EXTENSION NAME : linecounter
+EXTENSION VERSION : 0.2.7
+-------------------------------------------------------------------------------
+count time : 2020-02-22 09:57:56
+count workspace : /home/bhb/Cloud/Code/Git/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/src
+total files : 36
+total code lines : 1802
+total comment lines : 40
+total blank lines : 547
+
+    statistics
+   |      extension|     total code|  total comment|    total blank|percent|
+   -------------------------------------------------------------------------
+   |            .py|           1769|             40|            546|     98|
+   |               |             10|              0|              0|   0.55|
+   |           .txt|             23|              0|              1|    1.3|
+   -------------------------------------------------------------------------
+demo_discret_sigmoid_test copy.py, code is 67, comment is 0, blank is 21.
+demo_discret_sigmoid_test.py, code is 23, comment is 0, blank is 8.
+demo_get_roi.py, code is 46, comment is 0, blank is 19.
+demo_locate_1d.py, code is 81, comment is 4, blank is 36.
+demo_locate_2d.py, code is 106, comment is 8, blank is 40.
+demo_locate_2d_custom_conv.py, code is 131, comment is 7, blank is 49.
+demo_locate_2d_multible (3. Kopie).py, code is 182, comment is 4, blank is 56.
+demo_locate_2d_multible (Kopie).py, code is 200, comment is 5, blank is 53.
+demo_locate_2d_multible (weitere Kopie).py, code is 166, comment is 4, blank is 51.
+demo_locate_2d_multible.py, code is 236, comment is 6, blank is 61.
+demo_roi.py, code is 40, comment is 0, blank is 16.
+demo_transform.py, code is 28, comment is 1, blank is 10.
+setup.py, code is 2, comment is 0, blank is 1.
+ShAReD_net.egg-info/dependency_links.txt, code is 0, comment is 0, blank is 1.
+ShAReD_net.egg-info/PKG-INFO, code is 10, comment is 0, blank is 0.
+ShAReD_net.egg-info/SOURCES.txt, code is 22, comment is 0, blank is 0.
+ShAReD_net.egg-info/top_level.txt, code is 1, comment is 0, blank is 0.
+ShAReD_Net/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/loader/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/transformer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/metrik/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/framework/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/base.py, code is 313, comment is 0, blank is 70.
+ShAReD_Net/model/modules/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/modules/base.py, code is 148, comment is 1, blank is 55.
+ShAReD_Net/training/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/augmentation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/loss/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/model.py, code is 0, comment is 0, blank is 0.
+===============================================================================
+===============================================================================
+EXTENSION NAME : linecounter
+EXTENSION VERSION : 0.2.7
+-------------------------------------------------------------------------------
+count time : 2020-02-22 10:00:15
+count workspace : /home/bhb/Cloud/Code/Git/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/src
+total files : 32
+total code lines : 1769
+total comment lines : 40
+total blank lines : 546
+
+    statistics
+   |      extension|     total code|  total comment|    total blank|percent|
+   -------------------------------------------------------------------------
+   |            .py|           1769|             40|            546| 1.0e+2|
+   -------------------------------------------------------------------------
+demo_discret_sigmoid_test copy.py, code is 67, comment is 0, blank is 21.
+demo_discret_sigmoid_test.py, code is 23, comment is 0, blank is 8.
+demo_get_roi.py, code is 46, comment is 0, blank is 19.
+demo_locate_1d.py, code is 81, comment is 4, blank is 36.
+demo_locate_2d.py, code is 106, comment is 8, blank is 40.
+demo_locate_2d_custom_conv.py, code is 131, comment is 7, blank is 49.
+demo_locate_2d_multible (3. Kopie).py, code is 182, comment is 4, blank is 56.
+demo_locate_2d_multible (Kopie).py, code is 200, comment is 5, blank is 53.
+demo_locate_2d_multible (weitere Kopie).py, code is 166, comment is 4, blank is 51.
+demo_locate_2d_multible.py, code is 236, comment is 6, blank is 61.
+demo_roi.py, code is 40, comment is 0, blank is 16.
+demo_transform.py, code is 28, comment is 1, blank is 10.
+setup.py, code is 2, comment is 0, blank is 1.
+ShAReD_Net/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/loader/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/dataset/transformer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/metrik/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/evaluation/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/framework/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/inferenz/model.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/layer/base.py, code is 313, comment is 0, blank is 70.
+ShAReD_Net/model/modules/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/model/modules/base.py, code is 148, comment is 1, blank is 55.
+ShAReD_Net/training/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/augmentation/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/loss/__init__.py, code is 0, comment is 0, blank is 0.
+ShAReD_Net/training/model.py, code is 0, comment is 0, blank is 0.
+===============================================================================
