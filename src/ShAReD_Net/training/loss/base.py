@@ -265,7 +265,7 @@ class LossTestTrainingsModel(tf.keras.Model):
         
     def build(self, inputs_shape):
         feature_shape, gt_shape = inputs_shape
-        self.representation = tf.Variable(np.ones([feature_shape[0],10,10,10+keypoints]), trainable=True)
+        self.representation = tf.Variable(np.ones([feature_shape[0],10,10,10+self.keypoints]), trainable=True)
         self.loss = TrainingsLoss(self.keypoints, self.depth_bins)
 
     

@@ -1,18 +1,19 @@
 import tensorflow as tf
 import ShAReD_Net.training.loss.base as loss_base
 
-def get_train_model():     
-    return loss_base.LossTestTrainingsModel
 
 def main():
     keypoints = 15
     x = y = z = 250
     singel_gt = tf.constant([[x+245*kp,y+204*kp,z+200*kp] for kp in range(keypoints)],dtype = tf.float32)
     dataset = tf.data.Dataset.from_tensors(([1.], singel_gt))
+    
+    def get_train_model():
+        return loss_base.LossTestTrainingsModel(keypoints = keypoints)
 
     mirrored_strategy = tf.distribute.MirroredStrategy()
     
-    train(get_train_model, dataset, mirrored_strategy)
+    train(get_train_model, dataset, mirrored_strategy, batch_size = 16)
 
 def train(get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 0.01):
     with dist_strat.scope():
@@ -44,7 +45,7 @@ def train(get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 
             
         with dist_strat.scope():
             for inputs in dist_dataset:
-                step += 1
+                step.assign_add(1)
                 if steps > 0 and step > steps:
                     break
                 loss = train_step(inputs)
