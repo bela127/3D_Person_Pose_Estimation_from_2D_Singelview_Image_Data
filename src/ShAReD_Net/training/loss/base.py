@@ -272,7 +272,7 @@ class LossTestTrainingsModel(tf.keras.Model):
     @tf.function
     def call(self, inputs):
         feature, gt_target = inputs
-        return self.loss(self.representation, gt_target)
+        return self.loss([self.representation, gt_target])
     
 
 if __name__ == "__main__":

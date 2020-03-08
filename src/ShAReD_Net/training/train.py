@@ -33,15 +33,17 @@ def train(get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 
                     loss = train_model(inputs)
                     loss_per_input = loss / batch_size
                 
-                trainable_vars = train_model.trainable_vars()
+                trainable_vars = train_model.trainable_variables
                 gradients = tape.gradient(loss_per_input, trainable_vars)
-                [capped_gradients], _ = tf.clip_by_global_norm([gradients], 10.)
-                optimizer.apply_gradients([(capped_gradients, trainable_vars)])
+                capped_gradients, _ = tf.clip_by_global_norm(gradients, 10.)
+                to_optimize = zip(capped_gradients, trainable_vars)
+                optimizer.apply_gradients(to_optimize)
+                return loss_per_input
                 
             
             per_example_losses = dist_strat.experimental_run_v2(singel_device_train_step, args=(inputs,))
-            mean_loss = dist_strat.reduce(tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
-            return mean_loss
+            loss = dist_strat.reduce(tf.distribute.ReduceOp.SUM, per_example_losses, axis=0)
+            return loss
             
         with dist_strat.scope():
             for inputs in dist_dataset:
