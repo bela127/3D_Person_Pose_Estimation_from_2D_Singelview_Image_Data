@@ -233,7 +233,7 @@ def main():
     
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.5)
 
-    #@tf.function
+    @tf.function
     def train_loop(epochs):
         for epoch in tf.range(epochs):
             with tf.GradientTape() as tape:
@@ -256,6 +256,23 @@ def main():
             plt.show()
             
 
+class LossTestTrainingsModel(tf.keras.Model):
+    def __init__(self, keypoints = 15, depth_bins = 10):
+        super().__init__()
+        self.keypoints = keypoints
+        self.depth_bins = depth_bins
+
+        
+    def build(self, inputs_shape):
+        feature_shape, gt_shape = inputs_shape
+        self.representation = tf.Variable(np.ones([feature_shape[0],10,10,10+keypoints]), trainable=True)
+        self.loss = TrainingsLoss(self.keypoints, self.depth_bins)
+
+    
+    @tf.function
+    def call(self, inputs):
+        feature, gt_target = inputs
+        return self.loss(self.representation, gt_target)
     
 
 if __name__ == "__main__":

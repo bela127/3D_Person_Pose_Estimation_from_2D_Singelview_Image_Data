@@ -122,3 +122,6 @@ dmypy.json
 .pyre/
 src/data/
 src/settings/
+
+## Code statistics
+*__loc_out__/
