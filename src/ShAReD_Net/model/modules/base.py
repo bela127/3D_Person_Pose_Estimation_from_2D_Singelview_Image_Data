@@ -51,7 +51,7 @@ class ShAReDHourGlass(keras.layers.Layer):
     def call(self, inputs):
         input_res, input_shc = inputs
         
-        scale = tf.cast(input_shc.shape[1:3], dtype=tf.int32)
+        scale = tf.cast(tf.shape(input_shc)[1:3], dtype=tf.int32)
         scale_2 = tf.cast(scale/2, dtype=tf.int32)
         scale_4 = tf.cast(scale/4, dtype=tf.int32)
         scale_8 = tf.cast(scale/8, dtype=tf.int32)

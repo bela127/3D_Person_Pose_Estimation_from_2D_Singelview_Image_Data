@@ -49,28 +49,30 @@ class Extractor(keras.layers.Layer):
 
 class FrustumScaler(keras.layers.Layer):
     
-    def __init__(self, distance_count = 10, focal_length0 = [50.,50.], image_size0 = [480.,480.], scaling_steps = 0.1, name = "FrustumScaler", **kwargs):
+    def __init__(self, distance_count = 10, focal_length0 = [50.,50.], image_size0 = [480.,480.], distance_steps = 100, name = "FrustumScaler", **kwargs):
         super().__init__(name = name, **kwargs)
         self.distance_count = tf.cast(distance_count, dtype = tf.float32)
         self.focal_length0 = tf.cast(focal_length0, dtype = tf.float32)
         self.image_size0 = tf.cast(image_size0, dtype = tf.float32)
-        self.scaling_steps = tf.cast(scaling_steps, dtype = tf.float32)
+        self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
 
         
     def build(self, input_shape):
         super().build(input_shape)
     
+    @tf.function
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
-        sized_images = []
+        sized_images = tf.TensorArray(dtype=tf.float32, size=tf.cast(self.distance_count, dtype = tf.int32), dynamic_size=False)
+
         image_size = tf.cast(tf.shape(images)[1:3], dtype=tf.float32)
         cropped_size = image_size * crop_factor
         zero_scale = image_size * (self.image_size0 / cropped_size) * (self.focal_length0 / focal_length)
                                                                                               
         for i in tf.range(self.distance_count):
-            scale = zero_scale * (1.0 - self.scaling_steps * i)
+            scale = zero_scale / (focal_length / self.distance_steps * i)
             sized_image = tf.image.resize(images, tf.cast(scale + 0.5, dtype = tf.int32))
-            sized_images.append(sized_image)
+            sized_images = sized_images.write(i,sized_image)
 
         return sized_images
 
@@ -97,6 +99,7 @@ class ScaledFeatures(keras.layers.Layer):
         self.scaler = FrustumScaler(distance_count=self.distance_count, scaling_steps=self.scaling_steps)
         super().build(input_shape)
     
+    @tf.function
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         feature = self.extractor(images)
