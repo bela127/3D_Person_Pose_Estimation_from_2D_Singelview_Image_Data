@@ -17,7 +17,7 @@ class MultiScaleFeatureModel(keras.layers.Layer):
         self.high_level_extractor = MultiscaleShAReD(2,3,16)
         super().build(input_shape)
     
-    @tf.function
+    #@tf.function
     def call(self, inputs):
         low_level_feature = self.low_level_extractor(inputs)
         high_level_feature = list(zip(low_level_feature,low_level_feature))
