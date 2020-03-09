@@ -3,8 +3,8 @@ keras = tf.keras
 
 
 def main():
-    eager = True                    ### please change to FALSE in eager mode all 3 tests are fine
-    test_nr = 1 # 1 or 2 or 3       ### please test 1 and 2 and 3 -> diffrent errors
+    eager = False                    ### please change to FALSE in eager mode all 3 tests are fine
+    test_nr = 3 # 1 or 2 or 3       ### please test 1 and 2 and 3 -> diffrent errors
                                     ### error 3 ist clear, TensorShape is not tf.function compatible
                                     ### error 1,2 has somthing todo with the image.resize implementation
                                     ### runtime tensor is not evaluated and so the value is None

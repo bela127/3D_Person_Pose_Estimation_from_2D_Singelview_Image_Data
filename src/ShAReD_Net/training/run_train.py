@@ -9,6 +9,8 @@ import ShAReD_Net.training.loss.base as loss_base
 
 def main():
     print(tf.version.__dict__)
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+    
     keypoints = 15
     x = y = z = 250
     singel_gt = tf.constant([[x+245*kp,y+204*kp,z+200*kp] for kp in range(keypoints)],dtype = tf.float32)
@@ -18,8 +20,8 @@ def main():
     def get_train_model():
         return loss_base.LossTestTrainingsModel(keypoints = keypoints)
 
-    dist_strat = tf.distribute.MirroredStrategy()
-    #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
+    #dist_strat = tf.distribute.MirroredStrategy()
+    dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
     #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.ReductionToOneDevice())
 
     #dist_strat = tf.distribute.OneDeviceStrategy(device="/gpu:0")

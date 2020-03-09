@@ -218,6 +218,7 @@ class Scale(keras.layers.Layer):
         self.compress_output = keras.layers.Convolution2D(self.destination_channel, kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         super().build(input_shape)
 
+    @tf.function
     def call(self, inputs, destination_size):
         
         compressed_input = self.compress_input(inputs)
@@ -253,13 +254,16 @@ class ScaledShAReD(keras.layers.Layer):
         self.scale_down = Scale()
         super().build(input_shape)
         
+    @tf.function
     def call(self, inputs):
         inputs_res, inputs_shc = inputs
-        scaled_res = self.scale_down(inputs_res, inputs_shc.shape[1:3])
+        inputs_shc_shape = tf.shape(inputs_shc)
+        inputs_res_shape = tf.shape(inputs_res)
+        scaled_res = self.scale_down(inputs_res, inputs_shc_shape[1:3])
         attention = self.attention([scaled_res, inputs_shc])
         concat = keras.layers.concatenate([scaled_res, attention])
         dense_m = self.dense_m(concat)
-        scaled_dense = self.scale_up(dense_m, inputs_res.shape[1:3])
+        scaled_dense = self.scale_up(dense_m, inputs_res_shape[1:3])
         add_res = keras.layers.add([inputs_res, scaled_dense])
         return add_res, dense_m
         

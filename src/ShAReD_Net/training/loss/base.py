@@ -270,12 +270,12 @@ class LossTestTrainingsModel(tf.keras.layers.Layer):
         super().__init__()
         self.keypoints = tf.cast(keypoints, dtype = tf.int32)
         self.depth_bins = tf.cast(depth_bins, dtype = tf.int32)
-        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=None, dtype=tf.float32), tf.TensorSpec(shape=[None,self.keypoints,3], dtype=tf.float32))])
         
     def build(self, inputs_shape):
         feature_shape, gt_shape = inputs_shape
         self.representation = tf.Variable(tf.ones([1, 10, 10, self.depth_bins+self.keypoints]), trainable=True, dtype = tf.float32)
         self.loss = TrainingsLoss(self.keypoints, self.depth_bins)
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=None, dtype=tf.float32), tf.TensorSpec(shape=[None,self.keypoints,3], dtype=tf.float32))])
         super().build(inputs_shape)
 
     def call(self, inputs):

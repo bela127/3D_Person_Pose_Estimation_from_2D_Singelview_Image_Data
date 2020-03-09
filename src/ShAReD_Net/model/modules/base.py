@@ -47,6 +47,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         self.big_shared4 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         super().build(input_shape)
     
+    @tf.function
     def call(self, inputs):
         input_res, input_shc = inputs
         
@@ -120,6 +121,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         self.combine = list([base_layer.SelfShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.input_count)])
         super().build(input_shape)
         
+    @tf.function
     def call(self, inputs):
         outs = []
         for ins in inputs: 
@@ -156,6 +158,7 @@ class MultiscaleShAReD(keras.layers.Layer):
         self.stages = list([MultiscaleShAReDStage(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.stages_count)])
         super().build(input_shape)
         
+    @tf.function
     def call(self, inputs):
         outs = inputs
         for stage in self.stages:
@@ -191,6 +194,21 @@ def main():
     out = test_multiscale(inputs)
     print(out)
     print("MultiscaleShAReDStage")
+    
+    
+    time_start = time.time()
+    for i in range(10):
+        out = test_multiscale(inputs)
+    time_end = time.time()
+    print(time_end - time_start)
+    
+    print("MultiscaleShAReD")
+    inputs = list([(tf.constant(100.,shape=[1,i,i,20]),tf.constant(100.,shape=[1,i,i,30])) for i in range(50,125,25)])
+    multiscale = MultiscaleShAReD(2,3,16)
+    test_multiscale= test(multiscale, optimizer, training = True)
+    out = test_multiscale(inputs)
+    print(out)
+    print("MultiscaleShAReD")
     
     
     time_start = time.time()
