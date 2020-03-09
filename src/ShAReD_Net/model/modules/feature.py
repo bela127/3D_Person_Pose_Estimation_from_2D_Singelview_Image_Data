@@ -62,20 +62,24 @@ class FrustumScaler(keras.layers.Layer):
         self.max_dist = self.min_dist + self.distance_steps * self.distance_count
         super().build(input_shape)
     
-    #@tf.function
+    @tf.function
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         
         image_size = tf.cast(tf.shape(images)[1:3], dtype=tf.float32)
         cropped_size = image_size * crop_factor
-        rel_scale = image_size * (self.image_hight0 / cropped_size[1]) / (self.max_dist / focal_length)
-             
-        sized_images = [tf.image.resize(images, tf.cast(rel_scale * ((self.min_dist + self.distance_steps * i) / focal_length) + 0.5, dtype = tf.int32)) for i in tf.range(self.distance_count)]     
+        rel_scale = image_size * (self.image_hight0 / cropped_size[1]) / (self.max_dist / focal_length) 
         
-        #for i in range(int(self.distance_count)):
-        #    scale = rel_scale * ((self.min_dist + self.distance_steps * tf.cast(i, dtype =tf.float32)) / focal_length)
-        #    sized_image = tf.image.resize(images, tf.cast(scale + 0.5, dtype = tf.int32))
-        #    sized_images.append(sized_image)
+        scales_arr = tf.TensorArray(dtype =tf.float32, size=tf.cast(self.distance_count, dtype=tf.int32),dynamic_size=False)
+        for i in tf.range(self.distance_count):
+            scale = rel_scale * ((self.min_dist + self.distance_steps * tf.cast(i, dtype =tf.float32)) / focal_length)
+            scales_arr = scales_arr.write(tf.cast(i, dtype=tf.int32), scale)
+        scales = scales_arr.stack()
+        
+        scales_list = tf.unstack(scales)
+        sized_images = []
+        for scale in scales_list:
+            sized_images.append(tf.image.resize(images,tf.cast(scale + 0.5, dtype = tf.int32)))
         
         return sized_images
 
@@ -102,7 +106,7 @@ class ScaledFeatures(keras.layers.Layer):
         self.scaler = FrustumScaler(distance_count=self.distance_count, distance_steps=self.distance_steps)
         super().build(input_shape)
     
-    #@tf.function
+    @tf.function
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         feature = self.extractor(images)
@@ -115,6 +119,7 @@ class ScaledFeatures(keras.layers.Layer):
 
 
 def test(op, optimizer, **kwargs):
+    @tf.function
     def run(inputs):
         with tf.GradientTape() as tape:
             tape.watch(inputs)
