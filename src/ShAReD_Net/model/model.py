@@ -13,8 +13,8 @@ class MultiScaleFeatureModel(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
-        self.low_level_extractor = ScaledFeatures(5,0.3)
-        self.high_level_extractor = MultiscaleShAReD(2,3,16)
+        self.low_level_extractor = ScaledFeatures(4)
+        self.high_level_extractor = MultiscaleShAReD(2,2,16)
         super().build(input_shape)
     
     #@tf.function
@@ -53,8 +53,8 @@ def main():
     test_msf= test(msf, optimizer, training = True)
     out = test_msf(inputs)
     print(msf.count_params())
-    for image in out[0]:
-        print(image.shape)
+    for image1, image2 in out[0]:
+        print(image1.shape, image2.shape)
     print("MultiScaleFeatureModel")
     
     time_start = time.time()

@@ -7,7 +7,7 @@ keras = tf.keras
 
 class PersonDetector(keras.layers.Layer):
     
-    def __init__(self, name = "MultiScaleFeatureModel", **kwargs):
+    def __init__(self, name = "PersonDetector", **kwargs):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
