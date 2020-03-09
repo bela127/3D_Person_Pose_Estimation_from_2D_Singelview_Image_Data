@@ -52,13 +52,14 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
     with dist_strat.scope():
         optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate)
         train_model = get_train_model()
-        
-        init_callback = step_callbacks.get(0,None)
-        if init_callback:
-            init_callback(train_model)
     
     dataset = dataset.repeat(-1).batch(batch_size)
     dist_dataset = dist_strat.experimental_distribute_dataset(dataset)
+    
+    with dist_strat.scope():
+        init_callback = step_callbacks.get("train_init",None)
+        if init_callback:
+            init_callback(train_model, dist_dataset)
     
     def train_loop(dist_dataset):
         step = tf.Variable(0, trainable=False, dtype = tf.int32)
@@ -91,7 +92,7 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
                 loss = train_step(inputs)
                 if step_callbacks:
                     for callback_step, step_callback in step_callbacks.items():
-                        if callback_step > 0 and step % callback_step == 0:
+                        if isinstance(callback_step,int) and callback_step > 0 and step % callback_step == 0:
                             step_callback(train_model, loss, step)
         
     train_loop(dist_dataset)

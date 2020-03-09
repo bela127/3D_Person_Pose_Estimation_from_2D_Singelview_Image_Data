@@ -280,6 +280,7 @@ class LossTestTrainingsModel(tf.keras.layers.Layer):
 
     def call(self, inputs):
         feature, gt_target = inputs
+        print("Tracing with", feature, gt_target)
         batched_repr = tf.repeat(self.representation, repeats = tf.shape(feature)[0], axis=0)
         return self.loss([batched_repr, gt_target])
     

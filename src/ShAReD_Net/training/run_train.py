@@ -8,7 +8,9 @@ import ShAReD_Net.training.train as train
 import ShAReD_Net.training.loss.base as loss_base
 
 def main():
-    print(tf.version.__dict__)
+    print(tf.version.VERSION)
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+    
     keypoints = 15
     x = y = z = 250
     singel_gt = tf.constant([[x+245*kp,y+204*kp,z+200*kp] for kp in range(keypoints)],dtype = tf.float32)
@@ -18,14 +20,14 @@ def main():
     def get_train_model():
         return loss_base.LossTestTrainingsModel(keypoints = keypoints)
 
-    dist_strat = tf.distribute.MirroredStrategy()
+    #dist_strat = tf.distribute.MirroredStrategy()
     #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
     #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.ReductionToOneDevice())
 
-    #dist_strat = tf.distribute.OneDeviceStrategy(device="/gpu:0")
+    dist_strat = tf.distribute.OneDeviceStrategy(device="/cpu:0")
     step_callbacks = train.standart_callbacks()
     step_callbacks[400] = finish_training
-    step_callbacks[0] = init_model
+    step_callbacks["train_init"] = init_model
     
     train.train(400, get_train_model, dataset, dist_strat, batch_size = 16, step_callbacks = step_callbacks)
 
@@ -43,16 +45,14 @@ def finish_training(train_model, loss, step):
 def save_checkpoint(train_model, loss, step):
     pass
 
-def init_model(train_model):
+def init_model(train_model, dist_dataset):
     print("Init Model")
-    try_run(train_model)
+    try_run(train_model, dist_dataset)
     
-def try_run(train_model):
-    keypoints = 15
-    x = y = z = 250
-    singel_gt = tf.constant([[[x+245*kp,y+204*kp,z+200*kp] for kp in range(keypoints)]]*4, dtype = tf.float32)
-    singel_feature = tf.constant([1.] * 4,dtype = tf.float32)
-    train_model((singel_feature, singel_gt))
+def try_run(train_model, dist_dataset):
+    inputs = next(iter(dist_dataset))
+    dist_strat = tf.distribute.get_strategy()
+    out = dist_strat.experimental_run_v2(train_model, args=(inputs,))
 
 def validation_loop(train_model, loss, step):
     pass
