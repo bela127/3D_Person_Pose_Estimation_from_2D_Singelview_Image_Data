@@ -33,6 +33,7 @@ class LocationMap(tf.keras.layers.Layer):
         loc_map = np.meshgrid(*[np.arange(_min_loc, _max_loc, _delta) for _min_loc, _max_loc, _delta in  zip(self.min_loc, self.max_loc, self.loc_delta)])
         loc_map = tf.constant(loc_map, dtype = tf.float32)
         self.loc_map = tf.transpose(loc_map, [2,1,0])
+        super().build(input_shape)
 
     @tf.function
     def call(self, inputs):
@@ -73,6 +74,7 @@ class PropabilityMapToIndex(tf.keras.layers.Layer):
         loc_x = tf.broadcast_to(tf.expand_dims(loc_x,axis=-1),[input_shape[1],input_shape[2]])
         loc_y = tf.broadcast_to(tf.expand_dims(loc_y,axis=0),[input_shape[1],input_shape[2]])
         self.index_map = tf.stack([loc_x,loc_y],axis=-1)
+        super().build(input_shape)
 
     @tf.function
     def call(self, loc_prop_map):
@@ -94,6 +96,7 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
                
     def build(self, input_shape):
         self.variance_offset = (self.loc_delta/2)**2
+        super().build(input_shape)
 
     @tf.function
     def call(self, loc_prop_map, loc_map, gt_loc):

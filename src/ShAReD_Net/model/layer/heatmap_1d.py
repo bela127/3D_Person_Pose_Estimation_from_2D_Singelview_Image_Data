@@ -31,6 +31,7 @@ class LocationMap(tf.keras.layers.Layer):
         loc_map = np.arange(self.min_loc, self.max_loc, self.loc_delta)
         self.loc_map = tf.constant(loc_map, dtype = tf.float32)
         self.loc_map = tf.reshape(self.loc_map,[1,1,1,self.bins])
+        super().build(input_shape)
 
     @tf.function
     def call(self, inputs):
@@ -69,6 +70,7 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
                
     def build(self, input_shape):
         self.variance_offset = (self.loc_delta/2)**2
+        super().build(input_shape)
 
     @tf.function
     def call(self, loc_prop_map, loc_map, gt_loc):

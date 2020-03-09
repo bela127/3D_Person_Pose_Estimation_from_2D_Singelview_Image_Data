@@ -28,6 +28,7 @@ class LimbLength(tf.keras.layers.Layer):
                                             11,
                                             12,
                                             ],dtype=tf.int32)
+        super().build(inputs_shape)
     
     @tf.function
     def call(self, inputs):
@@ -65,6 +66,7 @@ class SymmetryLoss(tf.keras.layers.Layer):
                                           14,
                                           13,
                                           ],dtype=tf.int32)
+        super().build(inputs_shape)
     
     @tf.function
     def call(self, inputs):
@@ -90,13 +92,14 @@ class KeypointBatchToGT(tf.keras.layers.Layer):
     def build(self, inputs_shape):
         self.lti = heatmap_2d.LocationToIndex(self.loc_delta, self.max_index)
         self.max_loc = (self.max_index - 1) * self.loc_delta
+        super().build(inputs_shape)
 
     @tf.function 
     def call(self, inputs):
         gt_xy = inputs[:,:,0:2]
         gt_xy = tf.minimum(gt_xy,self.max_loc)
         
-        indexes_xy = self.lti(inputs[:,:,0:2])
+        indexes_xy = self.lti(gt_xy)
         
         size = inputs.shape[0]*inputs.shape[1]
         loc_arr = tf.TensorArray(dtype=tf.float32, size=size, dynamic_size=False)
@@ -130,6 +133,7 @@ class TrainingsLoss(tf.keras.layers.Layer):
         
         max_loc_z = self.loc_map_z.loc_delta * (self.depth_bins - 1)
         self.kp_to_gt = KeypointBatchToGT(self.loc_map_xy.loc_delta,feature_shape[1:3], max_loc_z)
+        super().build(inputs_shape)
 
     @tf.function
     def call(self, inputs):
@@ -259,14 +263,15 @@ def main():
 class LossTestTrainingsModel(tf.keras.Model):
     def __init__(self, keypoints = 15, depth_bins = 10):
         super().__init__()
-        self.keypoints = keypoints
-        self.depth_bins = depth_bins
+        self.keypoints = tf.cast(keypoints, dtype = tf.float32)
+        self.depth_bins = tf.cast(depth_bins, dtype = tf.float32)
 
         
     def build(self, inputs_shape):
         feature_shape, gt_shape = inputs_shape
-        self.representation = tf.Variable(np.ones([feature_shape[0],10,10,10+self.keypoints]), trainable=True)
+        self.representation = tf.Variable(np.ones([feature_shape[0], 10, 10, self.depth_bins+self.keypoints]), trainable=True, dtype = tf.float32)
         self.loss = TrainingsLoss(self.keypoints, self.depth_bins)
+        super().build(inputs_shape)
 
     
     @tf.function
