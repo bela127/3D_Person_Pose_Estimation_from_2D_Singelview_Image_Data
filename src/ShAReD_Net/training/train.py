@@ -21,10 +21,11 @@ def main():
         return loss_base.LossTestTrainingsModel(keypoints = keypoints)
 
     #dist_strat = tf.distribute.MirroredStrategy()
-    dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
+    #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
     #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.ReductionToOneDevice())
 
     #dist_strat = tf.distribute.OneDeviceStrategy(device="/gpu:0")
+    dist_strat = tf.distribute.OneDeviceStrategy(device="/cpu:0")
     step_callbacks = standart_callbacks()
     step_callbacks[400] = show_plot
     

@@ -11,7 +11,6 @@ class LimbLength(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
-        size = inputs_shape[0]*inputs_shape[1]
         self.limb_connection = tf.constant([0,
                                             0,
                                             1,
@@ -32,15 +31,16 @@ class LimbLength(tf.keras.layers.Layer):
     
     @tf.function
     def call(self, inputs):
-        size = inputs.shape[0]*inputs.shape[1]
+        inputs_shape = tf.shape(inputs)
+        size = inputs_shape[0]*inputs_shape[1]
         limb_arr = tf.TensorArray(dtype=tf.float32, size=size, dynamic_size=False)
-        for b in tf.range(inputs.shape[0]):
-            for kp in tf.range(inputs.shape[1]):
+        for b in tf.range(inputs_shape[0]):
+            for kp in tf.range(inputs_shape[1]):
                 limb_length = tf.sqrt(tf.reduce_sum((inputs[b,kp] - inputs[b,self.limb_connection[kp]])**2))
-                index = b*inputs.shape[1]+kp
+                index = b*inputs_shape[1]+kp
                 limb_arr = limb_arr.write(index,limb_length)
         limbs = limb_arr.stack()
-        limbs = tf.reshape(limbs, [inputs.shape[0],inputs.shape[1],1])
+        limbs = tf.reshape(limbs, [inputs_shape[0],inputs_shape[1],1])
         return limbs
 
 limb_length = LimbLength()
@@ -70,14 +70,15 @@ class SymmetryLoss(tf.keras.layers.Layer):
     
     @tf.function
     def call(self, inputs):
-        size = inputs.shape[0]*inputs.shape[1]
+        inputs_shape = tf.shape(inputs)
+        size = inputs_shape[0]*inputs_shape[1]
         sym_loss_arr = tf.TensorArray(dtype=tf.float32, size=size, dynamic_size=False)
-        for b in tf.range(inputs.shape[0]):
-            for kp in tf.range(inputs.shape[1]):
+        for b in tf.range(inputs_shape[0]):
+            for kp in tf.range(inputs_shape[1]):
                 per_limb_loss = (inputs[b,kp] - inputs[b,self.sym_connection[kp]])**2
-                sym_loss_arr = sym_loss_arr.write(b*inputs.shape[1]+kp,per_limb_loss)
+                sym_loss_arr = sym_loss_arr.write(b*inputs_shape[1]+kp,per_limb_loss)
         sym_loss = sym_loss_arr.stack()
-        sym_loss = tf.reshape(sym_loss, [inputs.shape[0],inputs.shape[1],1])
+        sym_loss = tf.reshape(sym_loss, [inputs_shape[0],inputs_shape[1],1])
         return sym_loss
 
 symmetry_loss = SymmetryLoss()
@@ -101,12 +102,13 @@ class KeypointBatchToGT(tf.keras.layers.Layer):
         
         indexes_xy = self.lti(gt_xy)
         
-        size = inputs.shape[0]*inputs.shape[1]
+        inputs_shape = tf.shape(inputs)
+        size = inputs_shape[0]*inputs_shape[1]
         loc_arr = tf.TensorArray(dtype=tf.float32, size=size, dynamic_size=False)
         index_arr = tf.TensorArray(dtype=tf.int32, size=size, dynamic_size=False)
-        for b in tf.range(inputs.shape[0]):
-            for kp in tf.range(inputs.shape[1]):
-                arr_index = b*inputs.shape[1]+kp
+        for b in tf.range(inputs_shape[0]):
+            for kp in tf.range(inputs_shape[1]):
+                arr_index = b*inputs_shape[1]+kp
                 loc_value = inputs[b,kp,2]
                 loc_arr = loc_arr.write(arr_index, loc_value)
                 index = tf.stack([b,indexes_xy[b,kp,0],indexes_xy[b,kp,1]])
@@ -120,8 +122,8 @@ class TrainingsLoss(tf.keras.layers.Layer):
     
     def __init__(self, key_points = 15, depth_bins = 10):
         super().__init__()
-        self.key_points = key_points
-        self.depth_bins = depth_bins
+        self.key_points = tf.cast(key_points, dtype = tf.int32)
+        self.depth_bins = tf.cast(depth_bins, dtype = tf.float32)
         
     def build(self, inputs_shape):
         feature_shape = inputs_shape[0]
@@ -133,9 +135,11 @@ class TrainingsLoss(tf.keras.layers.Layer):
         
         max_loc_z = self.loc_map_z.loc_delta * (self.depth_bins - 1)
         self.kp_to_gt = KeypointBatchToGT(self.loc_map_xy.loc_delta,feature_shape[1:3], max_loc_z)
+        
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=[None,feature_shape[1],feature_shape[2],self.key_points+tf.cast(self.depth_bins, dtype = tf.int32)], dtype=tf.float32), tf.TensorSpec(shape=[None,self.key_points,3], dtype=tf.float32))])
         super().build(inputs_shape)
 
-    @tf.function
+    # is a @tf.function with defined input shape
     def call(self, inputs):
         feature, gt_kp = inputs
         features_xy = feature[:,:,:,0:self.key_points]
@@ -173,18 +177,19 @@ class TrainingsLoss(tf.keras.layers.Layer):
         loc_z = heatmap_1d.propability_map_to_location(prop_map_z, loc_map_z)
         loss_z = self.loss_z(prop_map_z, loc_z, loc_map_z, gt_loc_z)
         
+        feature_shape = tf.shape(feature)
         
         loss_z = tf.gather_nd(loss_z,gt_index_z)
-        loss_z = tf.reshape(loss_z, [feature.shape[0],-1])
+        loss_z = tf.reshape(loss_z, [feature_shape[0],-1])
         
         loc_z_point = tf.gather_nd(loc_z,gt_index_z)
-        loc_z_point = tf.reshape(loc_z_point, [feature.shape[0],-1,1])
+        loc_z_point = tf.reshape(loc_z_point, [feature_shape[0],-1,1])
         
-        loss_z_sum = (tf.reduce_sum(loss_z)+0.001)/self.key_points
+        loss_z_sum = (tf.reduce_sum(loss_z)+0.001)/tf.cast(self.key_points, dtype = tf.float32)
         loss_z_batch = tf.reduce_sum(loss_z, axis=0)
         loss_z_factor = loss_z_batch/loss_z_sum
         
-        loss_xy_sum = (tf.reduce_sum(loss_xy)+0.001)/self.key_points
+        loss_xy_sum = (tf.reduce_sum(loss_xy)+0.001)/tf.cast(self.key_points, dtype = tf.float32)
         loss_xy_batch = tf.reduce_sum(loss_xy, axis=0)
         loss_xy_factor = loss_xy_batch/loss_xy_sum
         
@@ -260,24 +265,23 @@ def main():
             plt.show()
             
 
-class LossTestTrainingsModel(tf.keras.Model):
+class LossTestTrainingsModel(tf.keras.layers.Layer):
     def __init__(self, keypoints = 15, depth_bins = 10):
         super().__init__()
-        self.keypoints = tf.cast(keypoints, dtype = tf.float32)
-        self.depth_bins = tf.cast(depth_bins, dtype = tf.float32)
-
+        self.keypoints = tf.cast(keypoints, dtype = tf.int32)
+        self.depth_bins = tf.cast(depth_bins, dtype = tf.int32)
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=None, dtype=tf.float32), tf.TensorSpec(shape=[None,self.keypoints,3], dtype=tf.float32))])
         
     def build(self, inputs_shape):
         feature_shape, gt_shape = inputs_shape
-        self.representation = tf.Variable(np.ones([feature_shape[0], 10, 10, self.depth_bins+self.keypoints]), trainable=True, dtype = tf.float32)
+        self.representation = tf.Variable(tf.ones([1, 10, 10, self.depth_bins+self.keypoints]), trainable=True, dtype = tf.float32)
         self.loss = TrainingsLoss(self.keypoints, self.depth_bins)
         super().build(inputs_shape)
 
-    
-    @tf.function
     def call(self, inputs):
         feature, gt_target = inputs
-        return self.loss([self.representation, gt_target])
+        batched_repr = tf.repeat(self.representation, repeats = tf.shape(feature)[0], axis=0)
+        return self.loss([batched_repr, gt_target])
     
 
 if __name__ == "__main__":

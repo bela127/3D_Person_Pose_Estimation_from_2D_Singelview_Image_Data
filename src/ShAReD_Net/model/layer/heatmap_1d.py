@@ -21,9 +21,9 @@ class LocationMap(tf.keras.layers.Layer):
 
     def __init__(self, min_loc=0, max_loc=3000, bins=10):
         super().__init__()
-        self.bins = tf.constant(bins, dtype = tf.float32)
-        self.min_loc = tf.constant(min_loc, dtype = tf.float32)
-        self.max_loc = tf.constant(max_loc, dtype = tf.float32)
+        self.bins = tf.cast(bins, dtype = tf.float32)
+        self.min_loc = tf.cast(min_loc, dtype = tf.float32)
+        self.max_loc = tf.cast(max_loc, dtype = tf.float32)
         self.build(None)
 
     def build(self, input_shape):
@@ -97,7 +97,7 @@ class MaskFromIndex(tf.keras.layers.Layer):
     def call(self, index, dest_shape):
         indices = tf.cast(index, dtype =tf.int64)
         dest_shape = tf.cast(dest_shape, dtype =tf.int64)
-        mask = tf.SparseTensor(indices = indices, values = tf.ones(index.shape[0]), dense_shape = dest_shape)
+        mask = tf.SparseTensor(indices = indices, values = tf.ones(tf.shape(index)[0]), dense_shape = dest_shape)
         mask = tf.sparse.to_dense(mask, validate_indices=False)
         return tf.expand_dims(mask,axis=-1)
     

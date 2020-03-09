@@ -8,7 +8,7 @@ class FeatureToLocationPropabilityMap(tf.keras.layers.Layer):
 
     @tf.function
     def call(self, feature):
-        shape = feature.shape
+        shape = tf.shape(feature)
         flat = tf.reshape(feature,[shape[0], -1])
         flat = tf.nn.softmax(flat)
         return tf.reshape(flat, shape)
@@ -100,7 +100,8 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
 
     @tf.function
     def call(self, loc_prop_map, loc_map, gt_loc):
-        gt_loc = tf.reshape(gt_loc,[gt_loc.shape[0],1,1,gt_loc.shape[-1]])
+        gt_loc_shape = tf.shape(gt_loc)
+        gt_loc = tf.reshape(gt_loc,[gt_loc_shape[0],1,1,gt_loc_shape[-1]])
         variance = tf.reduce_sum(loc_prop_map * (loc_map - gt_loc)**2, axis=[1,2])
         shifted_var = tf.reduce_mean((tf.math.maximum(variance,self.variance_offset) - self.variance_offset), axis=1)
         return shifted_var
