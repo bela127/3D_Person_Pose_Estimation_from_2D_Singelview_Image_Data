@@ -170,8 +170,8 @@ class MultiscaleShAReD(keras.layers.Layer):
         config.update({'stages_count': self.stages_count})
         return config
 
-
 def test(op, optimizer, **kwargs):
+    @tf.function
     def run(inputs):
         with tf.GradientTape() as tape:
             tape.watch(op.trainable_variables)

@@ -329,6 +329,7 @@ class Mix(keras.layers.Layer):
 
 
 def test(op, optimizer, **kwargs):
+    @tf.function
     def run(inputs):
         with tf.GradientTape() as tape:
             tape.watch(op.trainable_variables)
