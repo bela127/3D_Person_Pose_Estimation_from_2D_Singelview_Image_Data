@@ -205,7 +205,43 @@ class Expand3D(tf.keras.layers.Layer):
     
 def main():
     #test_roi_2d()
-    test_roi_3d()
+    #test_roi_3d()
+    test_aggreagate3d()
+    
+def test_aggreagate3d():
+    print("Interleave")
+    input_res = tf.cast(np.ones([4,100,100,10]), dtype=tf.float32)
+    input_res.set_shape([None,None,None,10])
+    input_shc = tf.cast(np.ones([4,100,100,20]), dtype=tf.float32)
+    input_shc.set_shape([4,None,None,20])
+    inputs = [input_res,input_shc]
+    interleave = Interleave()
+    out = interleave(inputs)
+    print(out.shape)
+    print("Interleave")
+    
+    print("Combine3D")
+    input4 = tf.cast(np.ones([4,100,100,10]), dtype=tf.float32)
+    input4.set_shape([None,None,None,10])
+    input3 = tf.cast(np.ones([4,75,75,10]), dtype=tf.float32)
+    input3.set_shape([None,None,None,10])
+    input2 = tf.cast(np.ones([4,50,50,10]), dtype=tf.float32)
+    input2.set_shape([None,None,None,10])
+    input1 = tf.cast(np.ones([4,25,25,10]), dtype=tf.float32)
+    input1.set_shape([None,None,None,10])
+    
+    inputs = [input1,input2,input3,input4]
+    combine = Combine3D()
+    out = combine(inputs)
+    print(out.shape)
+    print("Combine3D")
+    
+    print("Expand3D")
+    inputs = out
+    expand = Expand3D()
+    out = expand(inputs)
+    print(out.shape)
+    print("Expand3D")
     
 def test_roi_3d():
     feature3d = np.zeros([2,5,30,30,1])

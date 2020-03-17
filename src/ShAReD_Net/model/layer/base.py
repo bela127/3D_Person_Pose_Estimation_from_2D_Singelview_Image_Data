@@ -1,7 +1,9 @@
 import time
+from enum import IntEnum
+
 
 import tensorflow as tf
-keras = tf.keras
+import tensorflow.keras as keras
 
 class BnDoConfReluConfRelu(keras.layers.Layer):
     def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "BnDoConfReluConfRelu", **kwargs):
@@ -290,23 +292,30 @@ class Merge(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    def call(self, inputs):
-        small, normal, big = inputs
-        normal_shape = tf.shape(normal)
-        if small is not None and big is not None:
+    def call(self, inputs, merge_type):
+        if merge_type == Merge.MergeType.CENTER:
+            small, normal, big = inputs
+            normal_shape = tf.shape(normal)
             resized_small = tf.image.resize_with_crop_or_pad(small, normal_shape[1], normal_shape[2])
             resized_big = tf.image.resize_with_crop_or_pad(big, normal_shape[1], normal_shape[2])
             concat = tf.concat([resized_small, normal, resized_big],axis=-1)
-        elif small is not None:
+            return concat
+        elif merge_type == Merge.MergeType.LEFT:
+            small, normal = inputs
+            normal_shape = tf.shape(normal)
             resized_small = tf.image.resize_with_crop_or_pad(small, normal_shape[1], normal_shape[2])
             concat = tf.concat([resized_small, normal],axis=-1)
-        elif big is not None:
+            return concat
+        elif merge_type == Merge.MergeType.RIGHT:
+            normal, big = inputs
+            normal_shape = tf.shape(normal)
             resized_big = tf.image.resize_with_crop_or_pad(big, normal_shape[1], normal_shape[2])
             concat = tf.concat([normal, resized_big],axis=-1)
+            return concat
         else:
+            normal = inputs
             concat = normal
-        
-        return concat
+            return concat
         
     def get_config(self):
         config = super().get_config()
@@ -315,12 +324,17 @@ class Merge(keras.layers.Layer):
                        })
         return config
     
+    class MergeType(IntEnum):
+        LEFT = 1
+        CENTER = 2
+        RIGHT = 3
+    
 class Mix(keras.layers.Layer):
     def __init__(self, name = "Mix", **kwargs):
-        super().__init__(name = name, **kwargs)     
-        
+        super().__init__(name = name, **kwargs)
+
     def build(self, input_shape):
-        print(self.name,input_shape)
+        print(self.name, input_shape)
         input_count = len(input_shape)
         self.merge = list([Merge() for i in range(input_count)])
         super().build(input_shape)
@@ -332,8 +346,18 @@ class Mix(keras.layers.Layer):
         inputs_d = inputs[1:] + [None]
         mixed = list(zip(inputs_u, inputs_m, inputs_d))
         combined = list(zip(self.merge, mixed))
-        merge = list([merge(ins) for merge, ins in combined])
-        return merge
+        merged = []
+        for merge, ins in combined:
+            small, normal, big = ins
+            if small is not None and big is not None:
+                merged.append(merge(ins, Merge.MergeType.CENTER))
+            elif small is not None:
+                merged.append(merge([small, normal],Merge.MergeType.LEFT))
+            elif big is not None:
+                merged.append(merge([normal, big],Merge.MergeType.RIGHT))
+            else:
+                merged.append(normal)
+        return merged
         
     def get_config(self):
         config = super().get_config()
@@ -371,7 +395,8 @@ def main():
     test_scaled_shared = test(scaled_shared, optimizer, training = True)
     out = test_scaled_shared([inputs,inputs_small])
     print(out)
-    print("ScaledShAReD")
+    print("ScaledShAReD") 
+    
     
     print("Mix")
     mix = Mix()
