@@ -281,15 +281,16 @@ class Merge(keras.layers.Layer):
     @tf.function
     def call(self, inputs):
         small, normal, big = inputs
+        normal_shape = tf.shape(normal)
         if small is not None and big is not None:
-            resized_small = tf.image.resize_with_crop_or_pad(small, normal.shape[1], normal.shape[2])
-            resized_big = tf.image.resize_with_crop_or_pad(big, normal.shape[1], normal.shape[2])
+            resized_small = tf.image.resize_with_crop_or_pad(small, normal_shape[1], normal_shape[2])
+            resized_big = tf.image.resize_with_crop_or_pad(big, normal_shape[1], normal_shape[2])
             concat = keras.layers.concatenate([resized_small, normal, resized_big])
         elif small is not None:
-            resized_small = tf.image.resize_with_crop_or_pad(small, normal.shape[1], normal.shape[2])
+            resized_small = tf.image.resize_with_crop_or_pad(small, normal_shape[1], normal_shape[2])
             concat = keras.layers.concatenate([resized_small, normal])
         elif big is not None:
-            resized_big = tf.image.resize_with_crop_or_pad(big, normal.shape[1], normal.shape[2])
+            resized_big = tf.image.resize_with_crop_or_pad(big, normal_shape[1], normal_shape[2])
             concat = keras.layers.concatenate([normal, resized_big])
         else:
             concat = normal
