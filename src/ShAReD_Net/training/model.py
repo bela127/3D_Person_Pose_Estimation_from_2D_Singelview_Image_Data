@@ -15,6 +15,7 @@ class TrainingModel(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
+        print(self.name,inputs_shape)
         self.detection_loss = loss_base.person_loss
         self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins)
         self.roi_extractor = aggregation.CropROI3D(roi_size=[1,11,11,1])

@@ -18,6 +18,7 @@ class PoseEstimator(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         output_depth = self.key_points + self.depth_bins
         
         self.self_shared1 = base_layer.SelfShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)

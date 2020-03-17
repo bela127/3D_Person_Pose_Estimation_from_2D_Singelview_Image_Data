@@ -13,6 +13,7 @@ class CropROI3D(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         self.roi_half_size = tf.cast(self.roi_size / 2, dtype=tf.int32)
         self.offset = tf.cast(self.roi_size % 2, dtype=tf.int32)
         super().build(inputs_shape)
@@ -50,6 +51,7 @@ class CropROI2D(tf.keras.layers.Layer):
     
     @tf.function
     def call(self, inputs):
+        print(self.name,inputs.shape)
         feature, ROIs = inputs
 
         def crop_roi(ROI):
@@ -63,6 +65,8 @@ class CropROI2D(tf.keras.layers.Layer):
 
         crops = tf.map_fn(crop_roi, ROIs, dtype=tf.float32)
         return crops
+    
+crop_roi_2d = CropROI2D()
 
 class MaskToROI(tf.keras.layers.Layer):
     def __init__(self, roi_size, threshold = 0.5, name = "MaskToROI", **kwargs):
@@ -71,6 +75,7 @@ class MaskToROI(tf.keras.layers.Layer):
         self.threshold = tf.cast(threshold, dtype=tf.float32)
     
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.roi_half_size = tf.cast(self.roi_size / 2, dtype=tf.int32)
         self.offset = tf.cast(self.roi_size % 2, dtype=tf.int32)
         super().build(input_shape)
@@ -113,6 +118,7 @@ class Interleave(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
     
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         res_shape, shc_shape = inputs_shape
         self.compress = tf.keras.layers.Convolution2D(res_shape[-1], 1, name="compress", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         super().build(inputs_shape)
@@ -134,6 +140,7 @@ class Combine3D(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
     
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         super().build(inputs_shape)
     
     @tf.function
@@ -158,6 +165,7 @@ class Expand3D(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
     
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         input_shape = inputs_shape
         self.tconf1 = tf.keras.layers.Conv3DTranspose(filters = input_shape[-1]*2/3,
                                         kernel_size = [5,3,3],

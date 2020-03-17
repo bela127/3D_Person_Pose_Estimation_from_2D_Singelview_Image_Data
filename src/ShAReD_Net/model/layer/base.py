@@ -12,6 +12,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
         
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.bn = keras.layers.BatchNormalization(input_shape = [None, None, input_shape[-1]])
         self.do = keras.layers.GaussianDropout(self.rate)
         self.conv1 = keras.layers.Convolution2D(self.filter_count, self.filter_size, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -42,6 +43,7 @@ class DenseBlock(keras.layers.Layer):
         self.filter_size = filter_size
 
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.block = BnDoConfReluConfRelu(filter_count = self.filter_count, rate = self.rate, filter_size = self.filter_size)
         super().build(input_shape)
 
@@ -64,6 +66,7 @@ class DenseModule(keras.layers.Layer):
         self.filter_size = filter_size
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.blocks = [DenseBlock(filter_count = self.filter_count, rate = self.rate, filter_size = self.filter_size) for i in range(self.blocks_count)]
         super().build(input_shape)
 
@@ -89,6 +92,7 @@ class ShReD(keras.layers.Layer):
         
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.dense_m = DenseModule(blocks_count = self.dense_blocks_count, rate = self.do_rate, filter_size = self.dense_filter_size, filter_count = self.dense_filter_count)
         self.write_res = keras.layers.Convolution2D(res_shape[-1], kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -112,6 +116,7 @@ class Attention(keras.layers.Layer):
         super().__init__(name = name, **kwargs)     
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         ins_shape, att_shape = input_shape
         self.attention = keras.layers.Convolution2D(ins_shape[-1], kernel_size=1, padding='SAME', activation=tf.nn.sigmoid, kernel_initializer=tf.initializers.glorot_normal(), bias_initializer=tf.initializers.glorot_uniform())
         super().build(input_shape)
@@ -133,6 +138,7 @@ class ResAttention(keras.layers.Layer):
         super().__init__(name = name, **kwargs)     
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.attention_res = Attention()
         self.read_shc = keras.layers.Convolution2D(res_shape[-1], kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -160,6 +166,7 @@ class ShAReD(keras.layers.Layer):
         
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.shred = ShReD(dense_filter_count= self.dense_filter_count, dense_blocks_count= self.dense_blocks_count, do_rate=self.do_rate, dense_filter_size= self.dense_filter_size)
         self.attention = ResAttention()
@@ -186,6 +193,7 @@ class SelfShAReD(keras.layers.Layer):
         
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.shared1 = ShAReD(dense_filter_count= self.dense_filter_count, dense_blocks_count= self.dense_blocks_count, do_rate=self.do_rate, dense_filter_size= self.dense_filter_size)
         self.attention = Attention()
@@ -210,6 +218,7 @@ class Scale(keras.layers.Layer):
         self.destination_channel = destination_channel
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         if self.destination_channel is None:
             self.destination_channel = input_shape[-1]
         self.compress_input = keras.layers.Convolution2D(int(input_shape[-1]/2), kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -247,6 +256,7 @@ class ScaledShAReD(keras.layers.Layer):
         self.dense_filter_size = dense_filter_size
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.dense_m = DenseModule(blocks_count = self.dense_blocks_count, rate = self.do_rate, filter_size = self.dense_filter_size, filter_count = self.dense_filter_count)
         self.attention = ResAttention()
@@ -276,6 +286,7 @@ class Merge(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         super().build(input_shape)
 
     @tf.function
@@ -309,6 +320,7 @@ class Mix(keras.layers.Layer):
         super().__init__(name = name, **kwargs)     
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         input_count = len(input_shape)
         self.merge = list([Merge() for i in range(input_count)])
         super().build(input_shape)

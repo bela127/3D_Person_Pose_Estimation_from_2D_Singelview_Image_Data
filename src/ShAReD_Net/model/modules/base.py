@@ -13,6 +13,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         self.dense_filter_count = dense_filter_count
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         self.big_shared2 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         
@@ -115,6 +116,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         self.dense_filter_count = dense_filter_count
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.input_count = len(input_shape)
         self.hour_glass = ShAReDHourGlass(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         self.mix = base_layer.Mix()
@@ -155,6 +157,7 @@ class MultiscaleShAReD(keras.layers.Layer):
         self.stages_count = stages_count
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.stages = list([MultiscaleShAReDStage(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.stages_count)])
         super().build(input_shape)
         

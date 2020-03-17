@@ -13,6 +13,7 @@ class PersonDetector(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.expand = aggregation.Expand3D()
         self.conf2 = tf.keras.layers.Convolution3D(filters = input_shape[-1]/4,
                                       kernel_size = [3,3,3],
@@ -132,18 +133,14 @@ def main():
     #tf.config.experimental_run_functions_eagerly(True)
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-    print("MultiScaleFeatureModel")
-    images = tf.constant(100.,shape=[1,100,100,3])
-    focal_length = tf.cast(25., dtype=tf.float32)
-    crop_factor = tf.cast(4.8, dtype=tf.float32)
-    inputs = [images, focal_length, crop_factor]
-    msf = MultiScaleFeatureModel()    
+    print("PersonDetector")
+    inputs = tf.constant(100.,shape=[4,5,100,100,10])
+    msf = PersonDetector()    
     test_msf= test(msf, optimizer, training = True)
-    out = test_msf(inputs)
+    out,g = test_msf(inputs)
     print(msf.count_params())
-    for image in out[0]:
-        print(image.shape)
-    print("MultiScaleFeatureModel")
+    print(out.shape)
+    print("PersonDetector")
     
     time_start = time.time()
     for i in range(10):

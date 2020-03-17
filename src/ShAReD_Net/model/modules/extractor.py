@@ -22,6 +22,7 @@ class MultiScaleFeatureExtractor(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.low_level_extractor = feature.ScaledFeatures(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0)
         self.high_level_extractor = module_base.MultiscaleShAReD(self.stages_count,self.dense_blocks_count,self.dense_filter_count)
         self.interleave = aggregation.Interleave()

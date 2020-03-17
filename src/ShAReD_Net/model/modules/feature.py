@@ -13,6 +13,7 @@ class LowLevelExtractor(keras.layers.Layer):
         self.texture_compositions = texture_compositions
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.colors = keras.layers.Convolution2D(self.color_channel, 1, name="colors", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.textures = keras.layers.DepthwiseConv2D(kernel_size = 3,depth_multiplier = self.texture_channel, name="textures", padding='SAME', activation=tf.nn.leaky_relu, depthwise_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.compositions11 = keras.layers.Convolution2D(self.texture_compositions, [1,9], name="comp11", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -57,6 +58,7 @@ class FrustumScaler(keras.layers.Layer):
         self.min_dist = tf.cast(min_dist, dtype = tf.float32)
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.max_dist = self.min_dist + self.distance_steps * self.distance_count
         super().build(input_shape)
     
@@ -102,6 +104,7 @@ class ScaledFeatures(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
+        print(self.name,input_shape)
         self.extractor = LowLevelExtractor()
         self.scaler = FrustumScaler(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0)
         super().build(input_shape)

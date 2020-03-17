@@ -11,6 +11,7 @@ class LimbLength(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         self.limb_connection = tf.constant([0,
                                             0,
                                             1,
@@ -50,6 +51,7 @@ class SymmetryLoss(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         self.sym_connection = tf.constant([0,
                                           1,
                                           2,
@@ -95,6 +97,7 @@ class KeypointBatchToPoseGT(tf.keras.layers.Layer):
         
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         self.lti = heatmap_2d.LocationToIndex(self.loc_delta_xy, self.min_loc_xy, self.max_idx_xy)
         self.max_loc_xy = (self.max_idx_xy - 1) * self.loc_delta_xy + self.min_loc_xy
         self.max_loc_z = (self.max_idx_z - 1) * self.loc_delta_z + self.min_loc_z
@@ -133,6 +136,7 @@ class PoseLossDepth(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         feature_z_shape, gt_loc_z_shape, gt_index_z_shape = inputs_shape
         self.loss_z = heatmap_1d.VarianceLocationAndPossitionLoss(self.loc_map_z.loc_delta)
                 
@@ -179,6 +183,7 @@ class PoseLoss2D(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         features_xy_shape, gt_xy_shape = inputs_shape
         self.key_points = features_xy_shape[-1]
         
@@ -229,6 +234,7 @@ class PoseLoss(tf.keras.layers.Layer):
         self.depth_bins = tf.cast(depth_bins, dtype = tf.float32)
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         feature_shape = inputs_shape[0]
         
         self.pose_loss_xy = PoseLoss2D(feature_shape[1:3])
@@ -271,7 +277,8 @@ class PersonPosFromPose(tf.keras.layers.Layer):
     def __init__(self):
         super().__init__()
         
-    def build(self, inputs_shape):      
+    def build(self, inputs_shape):
+        print(self.name,inputs_shape)   
         super().build(inputs_shape)
         
     @tf.function
@@ -289,6 +296,7 @@ class PersonPosToIndexes(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         super().build(inputs_shape)
         
     @tf.function
@@ -310,6 +318,7 @@ class PersonPosToHeatMap(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         super().build(inputs_shape)
         
     @tf.function
@@ -328,6 +337,7 @@ class HeatMapToWeights(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         super().build(inputs_shape)
         
     @tf.function
@@ -360,6 +370,7 @@ class PersonLoss(tf.keras.layers.Layer):
         super().__init__()
         
     def build(self, inputs_shape):
+        print(self.name,inputs_shape)
         feature_shape, (batch_index_shape, pos_shape) = inputs_shape
         self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=[None,feature_shape[1],feature_shape[2],feature_shape[3]], dtype=tf.float32),
                                                             (tf.TensorSpec(shape=[None], dtype=tf.float32),
