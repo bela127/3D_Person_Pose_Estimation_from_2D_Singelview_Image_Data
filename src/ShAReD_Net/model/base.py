@@ -14,11 +14,11 @@ class BaseModel(keras.Model):
     def __init__(self, key_points = 15,
                        xyz_bins = [20,20,10],
                        est_dbc = 4,
-                       est_dfc = 32,
+                       est_dfc = 16,
                        
                        stage_count = 2,
-                       ext_dbc = 3,
-                       ext_dfc = 16,
+                       ext_dbc = 4,
+                       ext_dfc = 8,
                        
                        min_dist=500,
                        dist_count = 5, 

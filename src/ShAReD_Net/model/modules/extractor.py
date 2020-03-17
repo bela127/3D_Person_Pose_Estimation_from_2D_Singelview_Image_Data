@@ -10,7 +10,7 @@ import ShAReD_Net.model.layer.aggregation as aggregation
 
 class MultiScaleFeatureExtractor(keras.layers.Layer):
     
-    def __init__(self, stages_count = 2, dense_blocks_count = 2, dense_filter_count = 16, distance_count = 10, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "MultiScaleFeatureExtractor", **kwargs):
+    def __init__(self, stages_count = 2, dense_blocks_count = 3, dense_filter_count = 16, distance_count = 5, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "MultiScaleFeatureExtractor", **kwargs):
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count
@@ -83,7 +83,7 @@ def main():
     print("MultiScaleFeatureExtractor")
     
     time_start = time.time()
-    for i in range(10):
+    for i in range(5):
         out = test_msf(inputs)
     time_end = time.time()
     print(time_end - time_start)

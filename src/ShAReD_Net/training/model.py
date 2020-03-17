@@ -15,7 +15,7 @@ class TrainingModel(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
-        print(self.name,inputs_shape)
+        print(self.name,input_shape)
         self.detection_loss = loss_base.person_loss
         self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins)
         self.roi_extractor = aggregation.CropROI3D(roi_size=[1,11,11,1])
@@ -29,8 +29,8 @@ class TrainingModel(tf.keras.layers.Layer):
         
         images_shape = tf.shape(images)
         xy_step = self.max_loc_xy / tf.cast(images_shape[1:3],dtype=tf.float32)
-        min_loc_xyz = tf.concat([0,0,self.base_model.min_dist],axis = 0)
-        loc_delta_xyz = tf.concat([xy_step[0],xy_step[1],self.base_model.dist_step],axis = 0)
+        min_loc_xyz = tf.stack([0,0,self.base_model.min_dist],axis = 0)
+        loc_delta_xyz = tf.stack([xy_step[0],xy_step[1],self.base_model.dist_step],axis = 0)
         
         gt_person_pos = loss_base.person_pos_from_pose(gt_poses)
         detection_loss = self.detection_loss([detection, (batch_indexes, gt_person_pos)],min_loc_xyz,loc_delta_xyz)
@@ -81,13 +81,13 @@ def main():
     pos_31=tf.constant([5,5,0],dtype=np.float32)
     pos_32=tf.constant([7,7,0],dtype=np.float32)
     
-    person_poses = [[min_loc_xyz+loc_delta_xyz*pos_01 for _ in range(14)],
-                    [min_loc_xyz+loc_delta_xyz*pos_02 for _ in range(14)],
-                    [min_loc_xyz+loc_delta_xyz*pos_11 for _ in range(14)],
-                    [min_loc_xyz+loc_delta_xyz*pos_12 for _ in range(14)],
-                    [min_loc_xyz+loc_delta_xyz*pos_21 for _ in range(14)],
-                    [min_loc_xyz+loc_delta_xyz*pos_31 for _ in range(14)],
-                    [min_loc_xyz+loc_delta_xyz*pos_32 for _ in range(14)]]
+    person_poses = [[min_loc_xyz+loc_delta_xyz*pos_01 for _ in range(15)],
+                    [min_loc_xyz+loc_delta_xyz*pos_02 for _ in range(15)],
+                    [min_loc_xyz+loc_delta_xyz*pos_11 for _ in range(15)],
+                    [min_loc_xyz+loc_delta_xyz*pos_12 for _ in range(15)],
+                    [min_loc_xyz+loc_delta_xyz*pos_21 for _ in range(15)],
+                    [min_loc_xyz+loc_delta_xyz*pos_31 for _ in range(15)],
+                    [min_loc_xyz+loc_delta_xyz*pos_32 for _ in range(15)]]
     
     person_poses = tf.cast(person_poses, dtype=tf.float32)
     

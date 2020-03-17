@@ -4,6 +4,7 @@ from enum import IntEnum
 
 import tensorflow as tf
 import tensorflow.keras as keras
+import numpy as np
 
 class BnDoConfReluConfRelu(keras.layers.Layer):
     def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "BnDoConfReluConfRelu", **kwargs):
@@ -215,9 +216,10 @@ class SelfShAReD(keras.layers.Layer):
         return config
     
 class Scale(keras.layers.Layer):
-    def __init__(self, destination_channel = None, name = "Scale", **kwargs):
+    def __init__(self, destination_channel = None, new_shape = None, name = "Scale", **kwargs):
         super().__init__(name = name, **kwargs)
         self.destination_channel = destination_channel
+        self.new_shape = new_shape
         
     def build(self, input_shape):
         print(self.name,input_shape)
@@ -230,14 +232,21 @@ class Scale(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    def call(self, inputs, destination_size):
+    def call(self, inputs, destination_size = None):
         
         compressed_input = self.compress_input(inputs)
         conv = self.conv(compressed_input)
         pool = self.pool(inputs)
         
-        scaled_conv = tf.image.resize(conv, destination_size, preserve_aspect_ratio=True, antialias=True)
-        scaled_pool = tf.image.resize(pool, destination_size, preserve_aspect_ratio=True, antialias=True)
+        if self.new_shape is None:
+            scaled_conv = tf.image.resize(conv, destination_size, preserve_aspect_ratio=True, antialias=True)
+            scaled_pool = tf.image.resize(pool, destination_size, preserve_aspect_ratio=True, antialias=True)
+        else:
+            self.new_shape = np.asarray(self.new_shape, dtype=np.int32)
+            scaled_conv = tf.image.resize(conv, self.new_shape, preserve_aspect_ratio=True, antialias=True)
+            scaled_pool = tf.image.resize(pool, self.new_shape, preserve_aspect_ratio=True, antialias=True)
+            scaled_conv.set_shape([None,self.new_shape[0],self.new_shape[1],None])
+            scaled_pool.set_shape([None,self.new_shape[0],self.new_shape[1],None])
         
         concat = keras.layers.concatenate([scaled_pool, scaled_conv])
         compressed_output = self.compress_output(concat)

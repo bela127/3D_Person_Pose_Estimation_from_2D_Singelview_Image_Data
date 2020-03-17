@@ -9,11 +9,12 @@ import ShAReD_Net.training.loss.base as loss_base
     
 class CropROI3D(tf.keras.layers.Layer):
     def __init__(self, roi_size = [1,9,9,1], name = "CropROI3D", **kwargs):
-        self.roi_size = tf.cast(roi_size,dtype=tf.int32)
+        self.roi_size = np.asarray(roi_size,dtype=np.int32)
         super().__init__(name = name, **kwargs)
         
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
+        feature_shape, indexe_shape = inputs_shape
         self.roi_half_size = tf.cast(self.roi_size / 2, dtype=tf.int32)
         self.offset = tf.cast(self.roi_size % 2, dtype=tf.int32)
         super().build(inputs_shape)
@@ -21,6 +22,7 @@ class CropROI3D(tf.keras.layers.Layer):
     #@tf.function
     def call(self, inputs):
         feature3D, roi_indexes = inputs
+        roi_indexes = tf.cast(roi_indexes, dtype=tf.int32)
         
         roi_lu = roi_indexes - self.roi_half_size
         roi_rd = roi_indexes + self.roi_half_size + self.offset
@@ -41,17 +43,20 @@ class CropROI3D(tf.keras.layers.Layer):
 
             crop = tf.pad(crop, [ [luf_overlap[2],rdb_overlap[2]], [luf_overlap[0],rdb_overlap[0]], [luf_overlap[1],rdb_overlap[1]], [0,0]])
             crops_arr = crops_arr.write(i,crop)
-        crops = crops_arr.stack()
-
+        crops = crops_arr.concat()
+        crops.set_shape([None,int(self.roi_size[1]),int(self.roi_size[2]),None])
         return crops
 
 class CropROI2D(tf.keras.layers.Layer):
     def __init__(self, name = "CropROI2D", **kwargs):
         super().__init__(name = name, **kwargs)
+        
+    def build(self, inputs_shape):
+        print(self.name,inputs_shape)
+        super().build(inputs_shape)
     
     @tf.function
     def call(self, inputs):
-        print(self.name,inputs.shape)
         feature, ROIs = inputs
 
         def crop_roi(ROI):
@@ -121,6 +126,7 @@ class Interleave(tf.keras.layers.Layer):
         print(self.name,inputs_shape)
         res_shape, shc_shape = inputs_shape
         self.compress = tf.keras.layers.Convolution2D(res_shape[-1], 1, name="compress", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.out_chanel = res_shape[-1] * 2
         super().build(inputs_shape)
     
     @tf.function
@@ -128,7 +134,8 @@ class Interleave(tf.keras.layers.Layer):
         res, shc = inputs
         compressed = self.compress(shc)
         conc = tf.concat([res[...,tf.newaxis], compressed[...,tf.newaxis]], axis=-1)
-        interleaved = tf.reshape(conc, [tf.shape(res)[0],tf.shape(res)[1],tf.shape(res)[2],-1])
+        interleaved = tf.reshape(conc, [tf.shape(res)[0],tf.shape(res)[1],tf.shape(res)[2],tf.shape(res)[3]*2])
+        interleaved.set_shape([None,None,None,self.out_chanel]) #TODO Quick fix should be infered
         return interleaved
     
     def get_config(self):
@@ -150,7 +157,7 @@ class Combine3D(tf.keras.layers.Layer):
         for feature in inputs:
             padded_feature = tf.image.resize_with_crop_or_pad(feature,size[0],size[1])
             same_sized.append(padded_feature)
-        stacked = tf.stack(same_sized,axis=-1)   #TODO Check if 3d stacking is working
+        stacked = tf.stack(same_sized,axis=-1)
         feature_3d = tf.transpose(stacked,[0,4,1,2,3])
         return feature_3d
     
@@ -204,8 +211,8 @@ class Expand3D(tf.keras.layers.Layer):
     
     
 def main():
-    #test_roi_2d()
-    #test_roi_3d()
+    test_roi_2d()
+    test_roi_3d()
     test_aggreagate3d()
     
 def test_aggreagate3d():
