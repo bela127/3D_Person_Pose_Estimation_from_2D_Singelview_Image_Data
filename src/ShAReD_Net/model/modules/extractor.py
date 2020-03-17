@@ -76,10 +76,9 @@ def main():
     inputs = [images, focal_length, crop_factor]
     msf = MultiScaleFeatureExtractor()    
     test_msf= test(msf, optimizer, training = True)
-    out = test_msf(inputs)
+    out, g = test_msf(inputs)
     print(msf.count_params())
-    for image1, image2 in out[0]:
-        print(image1.shape, image2.shape)
+    print(out.shape)
     print("MultiScaleFeatureExtractor")
     
     time_start = time.time()

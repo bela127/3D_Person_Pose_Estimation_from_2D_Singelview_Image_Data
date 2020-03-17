@@ -143,7 +143,7 @@ class Combine3D(tf.keras.layers.Layer):
         for feature in inputs:
             padded_feature = tf.image.resize_with_crop_or_pad(feature,size[0],size[1])
             same_sized.append(padded_feature)
-        stacked = tf.stack(same_sized[...,tf.newaxis],axis=-1)
+        stacked = tf.stack(same_sized,axis=-1)   #TODO Check if 3d stacking is working
         feature_3d = tf.transpose(stacked,[0,4,1,2,3])
         return feature_3d
     

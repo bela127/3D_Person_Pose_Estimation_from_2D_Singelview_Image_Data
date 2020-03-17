@@ -21,10 +21,10 @@ def main():
         return loss_base.LossTestTrainingsModel(keypoints = keypoints)
 
     #dist_strat = tf.distribute.MirroredStrategy()
-    #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
+    dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
     #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.ReductionToOneDevice())
 
-    dist_strat = tf.distribute.OneDeviceStrategy(device="/cpu:0")
+    #dist_strat = tf.distribute.OneDeviceStrategy(device="/cpu:0")
     step_callbacks = train.standart_callbacks()
     step_callbacks[400] = finish_training
     step_callbacks["train_init"] = init_model
@@ -35,7 +35,7 @@ def finish_training(train_model, loss, step):
     prob_maps = tf.unstack(train_model.representation, axis=-1)
     for prob_map_batch in prob_maps:
         prob_map_batch = heatmap_2d.feature_to_location_propability_map(prob_map_batch)
-        loc_map_xy = train_model.loss.loc_map_xy([0.,0.])
+        loc_map_xy = train_model.loss.pose_loss_xy.loc_map_xy([0.,0.])
         loc_xy = heatmap_2d.propability_map_to_location(tf.expand_dims(prob_map_batch,axis=-1),loc_map_xy)
         print(loc_xy)
         for prob_map in prob_map_batch:
