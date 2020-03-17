@@ -14,7 +14,8 @@ class InferenceModel(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
-        self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins)
+        self.low_level_extractor = ScaledFeatures(5)
+        self.high_level_extractor = MultiscaleShAReD(2,3,16)
         super().build(input_shape)
     
     @tf.function
