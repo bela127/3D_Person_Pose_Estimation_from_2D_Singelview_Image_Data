@@ -133,8 +133,7 @@ class LocationToIndex(tf.keras.layers.Layer):
         indexes = tf.minimum(indexes, self.max_index)
         return tf.cast(indexes +0.5, dtype=tf.int32)
 
-
-if __name__ == "__main__":
+def main():
     bins = [30,15]
     bin0_half = int(bins[0]/2)
     bin1_half = int(bins[1]/2)
@@ -177,5 +176,5 @@ if __name__ == "__main__":
     print("loc_loss:",loss)
 
 
-    
-    
+if __name__ == "__main__":
+    main()
