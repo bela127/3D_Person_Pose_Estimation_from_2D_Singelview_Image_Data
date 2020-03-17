@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 class FeatureToLocationPropabilityMap(tf.keras.layers.Layer):
 
@@ -87,7 +89,7 @@ class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
     def call(self, loc_prop_map, loc, loc_map, gt_loc):
         se = (loc-gt_loc)**2
         vll = self.vll(loc_prop_map, loc_map, gt_loc)
-        return se + vll
+        return (se, vll)
 
 class MaskFromIndex(tf.keras.layers.Layer):
     def __init__(self):
@@ -163,6 +165,9 @@ def main():
     loc = pmtl(loc_prop_map, loc_map)
     print("loc:",loc)
     
+    for kp, lo in zip(gt_loc,loc):
+        plt.imshow(tf.concat([kp[...,0],lo[...,0]],axis=1))
+        plt.show()
     
     vll = VarianceLocatonLoss(loc_map_op.loc_delta)
     loss = vll(loc_prop_map, loc_map, gt_loc)
@@ -171,7 +176,7 @@ def main():
     vlapl = VarianceLocationAndPossitionLoss(loc_map_op.loc_delta)
     loss = vlapl(loc_prop_map, loc, loc_map, gt_loc)
     print("loc_loss:",loss)
-
+    
 
     
 

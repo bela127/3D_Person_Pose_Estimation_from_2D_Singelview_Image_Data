@@ -48,7 +48,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         input_res, input_shc = inputs
         
         scale = tf.cast(tf.shape(input_shc)[1:3], dtype=tf.int32)
@@ -56,47 +56,47 @@ class ShAReDHourGlass(keras.layers.Layer):
         scale_4 = tf.cast(scale/4, dtype=tf.int32)
         scale_8 = tf.cast(scale/8, dtype=tf.int32)
         
-        big_shared1 = self.big_shared1(inputs)
-        big_shared2 = self.big_shared2(big_shared1)
+        big_shared1 = self.big_shared1(inputs, training=training)
+        big_shared2 = self.big_shared2(big_shared1, training=training)
         big_shared2_res, big_shared2_shc = big_shared2
         
         big_normal = self.big_normal(big_shared2_shc, scale_2)
         
-        normal_shared1 = self.normal_shared1([big_shared2_res, big_normal])
-        normal_shared2 = self.normal_shared2(normal_shared1)
+        normal_shared1 = self.normal_shared1([big_shared2_res, big_normal], training=training)
+        normal_shared2 = self.normal_shared2(normal_shared1, training=training)
         normal_shared2_res, normal_shared2_shc = normal_shared2
         
         normal_medium = self.normal_medium(normal_shared2_shc, scale_4)
         
-        medium_shared1 = self.medium_shared1([normal_shared2_res, normal_medium])
-        medium_shared2 = self.medium_shared2(medium_shared1)
+        medium_shared1 = self.medium_shared1([normal_shared2_res, normal_medium], training=training)
+        medium_shared2 = self.medium_shared2(medium_shared1, training=training)
         medium_shared2_res, medium_shared2_shc = medium_shared2
         
         medium_small = self.medium_small(medium_shared2_shc,scale_8)
         
-        small_shared1 = self.small_shared1([medium_shared2_res, medium_small])
-        small_shared2 = self.small_shared2(small_shared1)
+        small_shared1 = self.small_shared1([medium_shared2_res, medium_small], training=training)
+        small_shared2 = self.small_shared2(small_shared1, training=training)
         small_shared2_res, small_shared2_shc = small_shared2
         
         small_medium = self.small_medium(small_shared2_shc, scale_4)
         concat_medium = keras.layers.concatenate([small_medium, medium_shared2_shc])
                 
-        medium_shared3 = self.medium_shared3([small_shared2_res, concat_medium])
-        medium_shared4 = self.medium_shared4(medium_shared3)
+        medium_shared3 = self.medium_shared3([small_shared2_res, concat_medium], training=training)
+        medium_shared4 = self.medium_shared4(medium_shared3, training=training)
         medium_shared4_res, medium_shared4_shc = medium_shared4
         
         medium_normal = self.medium_normal(medium_shared4_shc, scale_2)
         concat_normal = keras.layers.concatenate([medium_normal, normal_shared2_shc])
         
-        normal_shared3 = self.normal_shared3([medium_shared4_res, concat_normal])
-        normal_shared4 = self.normal_shared4(normal_shared3)
+        normal_shared3 = self.normal_shared3([medium_shared4_res, concat_normal], training=training)
+        normal_shared4 = self.normal_shared4(normal_shared3, training=training)
         normal_shared4_res, normal_shared4_shc = normal_shared4
         
         normal_big = self.normal_big(normal_shared4_shc, scale)
         concat_big = keras.layers.concatenate([normal_big, big_shared2_shc])
 
-        big_shared3 = self.big_shared3([normal_shared4_res, concat_big])
-        big_shared4 = self.big_shared2(big_shared3)
+        big_shared3 = self.big_shared3([normal_shared4_res, concat_big], training=training)
+        big_shared4 = self.big_shared2(big_shared3, training=training)
         
         return big_shared4
         
@@ -122,10 +122,10 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         outs = []
         for ins in inputs: 
-            outs.append(self.hour_glass(ins))
+            outs.append(self.hour_glass(ins, training=training))
         outs_res = []
         for res, _ in outs: 
             outs_res.append(res)
@@ -139,7 +139,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         
         combined = []
         for comb, ins in combine: 
-            combined.append(comb(ins))
+            combined.append(comb(ins, training=training))
         
         return combined
         
@@ -159,15 +159,18 @@ class MultiscaleShAReD(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         outs = inputs
         for stage in self.stages:
-            outs = stage(outs)
+            outs = stage(outs, training=training)
         return outs
         
     def get_config(self):
         config = super().get_config()
-        config.update({'stages_count': self.stages_count})
+        config.update({'stages_count': self.stages_count,
+                       'dense_blocks_count': self.dense_blocks_count,
+                       'dense_filter_count': self.dense_filter_count,
+                       })
         return config
 
 def test(op, optimizer, **kwargs):

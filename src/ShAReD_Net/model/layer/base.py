@@ -19,9 +19,9 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
-    def call(self, inputs):
-        bn = self.bn(inputs)
-        do = self.do(bn)
+    def call(self, inputs, training=None):
+        bn = self.bn(inputs, training=training)
+        do = self.do(bn, training=training)
         conv1 = self.conv1(do)
         conv2 = self.conv2(conv1)
         return conv2
@@ -46,8 +46,8 @@ class DenseBlock(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    def call(self, inputs):
-        block = self.block(inputs)
+    def call(self, inputs, training=None):
+        block = self.block(inputs, training=training)
         concat = keras.layers.concatenate([inputs, block])
         return concat
         
@@ -68,10 +68,10 @@ class DenseModule(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         prev_block = inputs
         for next_block in self.blocks:
-            prev_block = next_block(prev_block)
+            prev_block = next_block(prev_block, training=training)
         return prev_block
         
     def get_config(self):
@@ -95,10 +95,10 @@ class ShReD(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         concat = keras.layers.concatenate(inputs)
-        dense_m = self.dense_m(concat)
+        dense_m = self.dense_m(concat, training=training)
         write_res = self.write_res(dense_m)
         add_res = keras.layers.add([inputs_res, write_res])
         return add_res, dense_m
@@ -166,10 +166,10 @@ class ShAReD(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         attention = self.attention(inputs)
-        output = self.shred([inputs_res, attention])
+        output = self.shred([inputs_res, attention], training=training)
         return output
         
     def get_config(self):
@@ -193,11 +193,11 @@ class SelfShAReD(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
-        outputs_res, outputs_shc = self.shared1([inputs_res, inputs_shc])
+        outputs_res, outputs_shc = self.shared1([inputs_res, inputs_shc], training=training)
         attention = self.attention([inputs_shc, outputs_shc])
-        output = self.shared2([outputs_res, attention])
+        output = self.shared2([outputs_res, attention], training=training)
         return output
         
     def get_config(self):
@@ -255,14 +255,14 @@ class ScaledShAReD(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         inputs_shc_shape = tf.shape(inputs_shc)
         inputs_res_shape = tf.shape(inputs_res)
         scaled_res = self.scale_down(inputs_res, inputs_shc_shape[1:3])
         attention = self.attention([scaled_res, inputs_shc])
         concat = keras.layers.concatenate([scaled_res, attention])
-        dense_m = self.dense_m(concat)
+        dense_m = self.dense_m(concat, training=training)
         scaled_dense = self.scale_up(dense_m, inputs_res_shape[1:3])
         add_res = keras.layers.add([inputs_res, scaled_dense])
         return add_res, dense_m

@@ -2,15 +2,6 @@ import time
 
 import tensorflow as tf
 
-def diskret_sigmoid_test(inputs):
-    activated = tf.minimum(tf.maximum(inputs/8.+0.5, 0.), 1.)
-    act = tf.nn.sigmoid(inputs)
-    return activated, act
-
-for x in range(-8,8):
-    print(x,": ",diskret_sigmoid_test(tf.cast(x,dtype=tf.float32)))
-
-
 class DiscretSigmoid(tf.keras.layers.Layer):
     def __init__(self, name = "DiscretSigmoid", **kwargs):
         super().__init__(name = name, **kwargs)
@@ -50,19 +41,41 @@ class DiscretSigmoid(tf.keras.layers.Layer):
 
 discret_sigmoid = DiscretSigmoid()
 
+class DiscretSigmoid_Test(tf.keras.layers.Layer):
+    def __init__(self, name = "DiscretSigmoid_Test", **kwargs):
+        super().__init__(name = name, **kwargs)
+    
+    @tf.function
+    def call(self, inputs):
+        return discret_sigmoid(inputs)
+
+dst = DiscretSigmoid_Test()
+
 @tf.function
 def singel_step(inputs):
     with tf.GradientTape() as tape:
         tape.watch(inputs)
-        yt = discret_sigmoid(inputs, training = True)
+        yt = dst(inputs, training = True)
     gt = tape.gradient(yt, inputs)
     with tf.GradientTape() as tape:
         tape.watch(inputs)
-        yi = discret_sigmoid(inputs, training = False)
+        yi = dst(inputs, training = False)
     gi = tape.gradient(yi, inputs)
     return inputs, yt, gt, yi, gi
 
+
+def diskret_sigmoid_test(inputs):
+    activated = tf.minimum(tf.maximum(inputs/8.+0.5, 0.), 1.)
+    act = tf.nn.sigmoid(inputs)
+    return activated, act
+
 def main():
+
+    for x in range(-8,8):
+        print(x,": ",diskret_sigmoid_test(tf.cast(x,dtype=tf.float32)))
+
+
+    
     time_start = time.time()
     timing_loop()
     time_end = time.time()
@@ -73,7 +86,10 @@ def main():
 @tf.function
 def timing_loop():
     for i in tf.range(200):
-        test_loop()
+        for x in tf.range(-8,8):
+            inputs = tf.cast(x,dtype=tf.float32)
+            x, yt, gt, yi, gi = singel_step(inputs)
+
         
 @tf.function
 def test_loop():

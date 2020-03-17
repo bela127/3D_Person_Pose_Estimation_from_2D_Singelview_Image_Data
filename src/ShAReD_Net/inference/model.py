@@ -4,25 +4,35 @@ import numpy as np
 import tensorflow as tf
 keras = tf.keras
 
-from ShAReD_Net.model.modules.base import MultiscaleShAReD
-from ShAReD_Net.model.modules.feature import ScaledFeatures
+import ShAReD_Net.model.base as base
+import ShAReD_Net.training.loss.base as loss_base
 
-class MultiScaleFeatureModel(keras.layers.Layer):
+class InferenceModel(keras.layers.Layer):
     
-    def __init__(self, name = "MultiScaleFeatureModel", **kwargs):
+    def __init__(self, name = "InferenceModel", **kwargs):   
+        self.base_model = base.base_model
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
-        self.low_level_extractor = ScaledFeatures(4)
-        self.high_level_extractor = MultiscaleShAReD(2,2,16)
+        self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins)
         super().build(input_shape)
     
     @tf.function
-    def call(self, inputs):
-        low_level_feature = self.low_level_extractor(inputs)
-        high_level_feature = list(zip(low_level_feature,low_level_feature))
-        detection_feature = self.high_level_extractor(high_level_feature)
-        return detection_feature
+    def call(self, inputs, training=None):
+        images = inputs
+        feature3d = self.base_model.extractor(images)
+        detection = self.base_model.detector(feature3d)
+        
+        person_pos = self.detect_to_pos(detection)
+        
+        expanded3d = self.base_model.expand(feature3d)
+        roi_feature = self.roi_extractor([expanded3d, person_pos])
+        
+        estimates = self.base_model.estimator(roi_feature)
+        
+        poses = self.pose_from_estimate(estimates)
+        
+        return person_pos, poses
         
     def get_config(self):
         config = super().get_config()
@@ -45,18 +55,15 @@ def main():
     #tf.config.experimental_run_functions_eagerly(True)
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-    print("MultiScaleFeatureModel")
-    images = tf.constant(100.,shape=[1,100,100,3])
-    focal_length = tf.cast(25., dtype=tf.float32)
-    crop_factor = tf.cast(4.8, dtype=tf.float32)
-    inputs = [images, focal_length, crop_factor]
-    msf = MultiScaleFeatureModel()    
+    print("TrainingModel")
+    inputs = tf.constant(100.,shape=[1,100,100,3])
+    msf = TrainingModel()    
     test_msf= test(msf, optimizer, training = True)
     out = test_msf(inputs)
     print(msf.count_params())
     for image1, image2 in out[0]:
         print(image1.shape, image2.shape)
-    print("MultiScaleFeatureModel")
+    print("TrainingModel")
     
     time_start = time.time()
     for i in range(10):

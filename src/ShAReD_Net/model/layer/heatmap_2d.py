@@ -114,18 +114,22 @@ class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
 
     @tf.function
     def call(self, loc_prop_map, loc, loc_map, gt_loc):
-        return self.mse(loc, gt_loc) + self.vll(loc_prop_map, loc_map, gt_loc)
+        mse = self.mse(loc, gt_loc)
+        vll = self.vll(loc_prop_map, loc_map, gt_loc)
+        return (mse, vll)
 
 class LocationToIndex(tf.keras.layers.Layer):
     
-    def __init__(self, loc_delta, max_index):
+    def __init__(self, loc_delta, min_loc, loc_bins):
         super().__init__()
         self.loc_delta = tf.cast(loc_delta,dtype=tf.float32)
-        self.max_index = tf.cast(max_index,dtype=tf.float32) - 1
+        self.max_index = tf.cast(loc_bins,dtype=tf.float32) - 1
+        self.min_loc = tf.cast(min_loc,dtype=tf.float32)
 
     @tf.function
     def call(self, loc):
-        indexes = loc / self.loc_delta
+        indexes = (loc - self.min_loc) / self.loc_delta
+        indexes = tf.maximum(indexes, 0)
         indexes = tf.minimum(indexes, self.max_index)
         return tf.cast(indexes +0.5, dtype=tf.int32)
 
@@ -154,7 +158,7 @@ if __name__ == "__main__":
     loc = pmtl(loc_prop_map, loc_map)
     print("loc:",loc)
     
-    lti = LocationToIndex(loc_map_op.loc_delta, bins)
+    lti = LocationToIndex(loc_map_op.loc_delta, loc_map_op.min_loc, bins)
     indexes = lti(loc)
     print("indexes loc:",indexes)
     

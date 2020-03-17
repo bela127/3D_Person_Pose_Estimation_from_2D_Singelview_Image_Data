@@ -5,7 +5,7 @@ import tensorflow as tf
 keras = tf.keras
 
 
-class Extractor(keras.layers.Layer):
+class LowLevelExtractor(keras.layers.Layer):
     def __init__(self, color_channel = 13, texture_channel = 32, texture_compositions = 16, name = "Extractor", **kwargs):
         super().__init__(name = name, **kwargs)
         self.color_channel = color_channel
@@ -13,7 +13,7 @@ class Extractor(keras.layers.Layer):
         self.texture_compositions = texture_compositions
         
     def build(self, input_shape):
-        self.colors = keras.layers.Convolution2D(self.color_channel, 1, name="colors", padding='SAME', activation=None, kernel_initializer=tf.initializers.RandomNormal(), bias_initializer=tf.initializers.RandomUniform())
+        self.colors = keras.layers.Convolution2D(self.color_channel, 1, name="colors", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.textures = keras.layers.DepthwiseConv2D(kernel_size = 3,depth_multiplier = self.texture_channel, name="textures", padding='SAME', activation=tf.nn.leaky_relu, depthwise_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.compositions11 = keras.layers.Convolution2D(self.texture_compositions, [1,9], name="comp11", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.compositions12 = keras.layers.Convolution2D(self.texture_compositions, [9,1], name="comp12", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -55,8 +55,6 @@ class FrustumScaler(keras.layers.Layer):
         self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
         self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
         self.min_dist = tf.cast(min_dist, dtype = tf.float32)
-
-
         
     def build(self, input_shape):
         self.max_dist = self.min_dist + self.distance_steps * self.distance_count
@@ -87,23 +85,25 @@ class FrustumScaler(keras.layers.Layer):
     def get_config(self):
         config = super().get_config()
         config.update({'distance_count': self.distance_count,
-                       'focal_length0': self.focal_length0,
-                       'image_size0': self.image_size0,
-                       'scaling_steps': self.scaling_steps,
+                       'min_dist': self.min_dist,
+                       'image_hight0': self.image_hight0,
+                       'distance_steps': self.distance_steps,
                        })
         return config
 
 
 class ScaledFeatures(keras.layers.Layer):
     
-    def __init__(self, distance_count = 10, distance_steps = 50, name = "ScaledFeatures", **kwargs):
-        self.distance_count = distance_count
-        self.distance_steps = distance_steps
+    def __init__(self, distance_count = 10, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "ScaledFeatures", **kwargs):
+        self.distance_count = tf.cast(distance_count, dtype = tf.float32)
+        self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
+        self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
+        self.min_dist = tf.cast(min_dist, dtype = tf.float32)
         super().__init__(name = name, **kwargs)
         
     def build(self, input_shape):
-        self.extractor = Extractor()
-        self.scaler = FrustumScaler(distance_count=self.distance_count, distance_steps=self.distance_steps)
+        self.extractor = LowLevelExtractor()
+        self.scaler = FrustumScaler(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0)
         super().build(input_shape)
     
     @tf.function
@@ -115,6 +115,11 @@ class ScaledFeatures(keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
+        config.update({'distance_count': self.distance_count,
+                       'min_dist': self.min_dist,
+                       'image_hight0': self.image_hight0,
+                       'distance_steps': self.distance_steps,
+                       })
         return config
 
 
@@ -140,7 +145,7 @@ def main():
     
     print("Extractor")
     inputs = tf.constant(100.,shape=[1,100,100,20])
-    extractor = Extractor()
+    extractor = LowLevelExtractor()
     test_extractor= test(extractor, optimizer, training = True)
     out = test_extractor(inputs)
     print(out)
