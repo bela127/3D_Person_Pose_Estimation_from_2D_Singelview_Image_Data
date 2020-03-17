@@ -41,7 +41,7 @@ def show_plot(train_model, loss, step):
     prob_maps = tf.unstack(train_model.representation, axis=-1)
     for prob_map_batch in prob_maps:
         prob_map_batch = heatmap_2d.feature_to_location_propability_map(prob_map_batch)
-        loc_map_xy = train_model.loss.loc_map_xy([0.,0.])
+        loc_map_xy = train_model.loss.pose_loss_xy.loc_map_xy([0.,0.])
         loc_xy = heatmap_2d.propability_map_to_location(tf.expand_dims(prob_map_batch,axis=-1),loc_map_xy)
         print(loc_xy)
         for prob_map in prob_map_batch:
@@ -49,6 +49,8 @@ def show_plot(train_model, loss, step):
             plt.show()
 
 def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, step_callbacks = {1: print_step, 10: print_loss}):
+    
+    batch_size = tf.cast(batch_size, dtype=tf.int64)
     with dist_strat.scope():
         optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate)
         train_model = get_train_model()
@@ -71,7 +73,7 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
             def singel_device_train_step(inputs):
                 with tf.GradientTape() as tape:
                     loss = train_model(inputs)
-                    loss_per_input = loss / batch_size
+                    loss_per_input = loss / tf.cast(batch_size, dtype=tf.float32)
                 
                 trainable_vars = train_model.trainable_variables
                 gradients = tape.gradient(loss_per_input, trainable_vars)
