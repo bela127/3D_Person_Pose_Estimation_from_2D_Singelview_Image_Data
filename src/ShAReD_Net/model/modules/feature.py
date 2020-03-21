@@ -163,7 +163,7 @@ def main():
     test_scaler= test(scaler, optimizer, training = True)
     out = test_scaler(inputs)
     for image in out[0]:
-        print(image.shape)
+        print(image.shape)#TODO check output shape
     print("FrustumScaler")
     
     print("ScaledFeatures")

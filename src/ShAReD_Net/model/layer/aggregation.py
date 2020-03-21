@@ -204,8 +204,8 @@ class Expand3D(tf.keras.layers.Layer):
     
     
 def main():
-    #test_roi_2d()
-    #test_roi_3d()
+    test_roi_2d()
+    test_roi_3d()
     test_aggreagate3d()
     
 def test_aggreagate3d():

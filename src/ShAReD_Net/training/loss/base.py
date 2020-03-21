@@ -397,7 +397,7 @@ person_loss = PersonLoss()
 
 def main():
     #tf.config.experimental_run_functions_eagerly(True)
-    #test_pose_loss()
+    test_pose_loss()
     test_pos_loss()
     
 def test_pos_loss():
