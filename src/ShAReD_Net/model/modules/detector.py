@@ -81,6 +81,7 @@ class PersonDetector(keras.layers.Layer):
 
         super().build(input_shape)
     
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         feature = inputs
         expanded = self.expand(feature)

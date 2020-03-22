@@ -55,11 +55,23 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
         optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate)
         train_model = get_train_model()
     
-    dataset = dataset.repeat(-1).batch(batch_size)
-    dist_dataset = dist_strat.experimental_distribute_dataset(dataset)
+    input_preprocessing_callback = step_callbacks.get("input_preprocessing",None)
+    batching_callback = step_callbacks.get("batching",None)
+    init_callback = step_callbacks.get("train_init",None)
+    
+    dataset = dataset.repeat(-1)
+    
+    if batching_callback:
+        def dataset_fn(input_context):
+            per_replica_batch_size = input_context.get_per_replica_batch_size(batch_size)
+            d = batching_callback(dataset, per_replica_batch_size)
+            return d.shard(input_context.num_input_pipelines, input_context.input_pipeline_id).prefetch(100)
+        dist_dataset = dist_strat.experimental_distribute_datasets_from_function(dataset_fn)
+    else:
+        dataset = dataset.batch(batch_size).prefetch(100)
+        dist_dataset = dist_strat.experimental_distribute_dataset(dataset)
     
     with dist_strat.scope():
-        init_callback = step_callbacks.get("train_init",None)
         if init_callback:
             init_callback(train_model, dist_dataset)
     
@@ -67,12 +79,13 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
         step = tf.Variable(0, trainable=False, dtype = tf.int32)
 
         @tf.function
-        def train_step(inputs):
+        def train_step(batch):
             
-            @tf.function
-            def singel_device_train_step(inputs):
+            def singel_device_train_step(batch):
+                if input_preprocessing_callback:
+                    inputs = input_preprocessing_callback(batch)
                 with tf.GradientTape() as tape:
-                    loss = train_model(inputs)
+                    loss = train_model(batch)
                     loss_per_input = loss / tf.cast(batch_size, dtype=tf.float32)
                 
                 trainable_vars = train_model.trainable_variables
@@ -83,15 +96,15 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
                 return loss_per_input
                 
             
-            per_example_losses = dist_strat.experimental_run_v2(singel_device_train_step, args=(inputs,))
+            per_example_losses = dist_strat.experimental_run_v2(singel_device_train_step, args=(batch,))
             return per_example_losses
             
         with dist_strat.scope():
-            for inputs in dist_dataset:
+            for batch in dist_dataset:
                 step.assign_add(1)
                 if steps < 0 or step > steps:
                     break
-                loss = train_step(inputs)
+                loss = train_step(batch)
                 if step_callbacks:
                     for callback_step, step_callback in step_callbacks.items():
                         if isinstance(callback_step,int) and callback_step > 0 and step % callback_step == 0:

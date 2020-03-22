@@ -103,7 +103,7 @@ class KeypointBatchToPoseGT(tf.keras.layers.Layer):
         self.max_loc_z = (self.max_idx_z - 1) * self.loc_delta_z + self.min_loc_z
         super().build(inputs_shape)
 
-    @tf.function 
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs):
         gt_xy = inputs[:,:,0:2]
         gt_xy = tf.minimum(gt_xy,self.max_loc_xy)
@@ -280,10 +280,12 @@ class PersonPosFromPose(tf.keras.layers.Layer):
     def build(self, inputs_shape):
         print(self.name,inputs_shape)   
         super().build(inputs_shape)
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None, 15, 3],dtype=tf.float32))])
         
-    @tf.function
+    #@tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs):
         person_poses = inputs
+        print("tracing", self.name,person_poses.shape)
         
         person_pos = tf.reduce_mean(person_poses,axis=1)
         
@@ -291,17 +293,21 @@ class PersonPosFromPose(tf.keras.layers.Layer):
     
 person_pos_from_pose = PersonPosFromPose()
 
-class PersonPosToIndexes(tf.keras.layers.Layer):
+class PersonPosToIndexes(tf.keras.layers.Layer): #TODO triggeres retracing
     def __init__(self):
         super().__init__()
         
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None],dtype=tf.float32),tf.TensorSpec([None, 3],dtype=tf.float32)),tf.TensorSpec([3],dtype=tf.int32),tf.TensorSpec([3],dtype=tf.float32),tf.TensorSpec([3],dtype=tf.float32)])
         
-    @tf.function
+    #@tf.function(experimental_relax_shapes=True)
     def call(self, inputs, max_indexes, min_loc_xyz, loc_delta_xyz):
         batch_index, person_pos = inputs
+        print("tracing", self.name, batch_index.shape, person_pos.shape)
+        print("and params", max_indexes.shape, min_loc_xyz.shape, loc_delta_xyz.shape)
+        
         indices = (person_pos - min_loc_xyz) / loc_delta_xyz
         indices = tf.maximum(indices, 0)
         max_index = tf.cast(max_indexes, dtype=tf.float32)
@@ -321,7 +327,7 @@ class PersonPosToHeatMap(tf.keras.layers.Layer):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
         
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, feature_shape, min_loc_xyz, loc_delta_xyz):
         batch_index, person_pos = inputs
         max_indexes = feature_shape[1:] - 1
@@ -340,7 +346,7 @@ class HeatMapToWeights(tf.keras.layers.Layer):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
         
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs):
         heatmap = inputs
         heatmap_shape = tf.shape(heatmap)

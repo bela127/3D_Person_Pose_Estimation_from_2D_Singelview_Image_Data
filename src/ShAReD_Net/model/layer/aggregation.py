@@ -42,9 +42,9 @@ class CropROI3D(tf.keras.layers.Layer):
             luf_overlap = tf.maximum(- roi[0,1:],0)
 
             crop = tf.pad(crop, [ [luf_overlap[2],rdb_overlap[2]], [luf_overlap[0],rdb_overlap[0]], [luf_overlap[1],rdb_overlap[1]], [0,0]])
+            crop.set_shape([int(self.roi_size[3]),int(self.roi_size[1]),int(self.roi_size[2]),None])
             crops_arr = crops_arr.write(i,crop)
         crops = crops_arr.concat()
-        crops.set_shape([None,int(self.roi_size[1]),int(self.roi_size[2]),None])
         return crops
 
 class CropROI2D(tf.keras.layers.Layer):

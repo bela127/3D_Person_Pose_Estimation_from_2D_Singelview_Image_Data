@@ -34,7 +34,7 @@ class PoseEstimator(keras.layers.Layer):
         self.shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         self_shared1_res, self_shared1_shc = self.self_shared1([inputs,inputs], training=training)
         scaled_shc1 = self.scale_shc1(self_shared1_shc)

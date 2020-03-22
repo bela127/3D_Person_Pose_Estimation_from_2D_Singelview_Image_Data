@@ -6,11 +6,13 @@ keras = tf.keras
 
 
 class LowLevelExtractor(keras.layers.Layer):
-    def __init__(self, color_channel = 13, texture_channel = 32, texture_compositions = 16, name = "Extractor", **kwargs):
+    def __init__(self, color_channel = 13, texture_channel = 16, texture_compositions = 16, out_channel = 32, name = "Extractor", **kwargs):
         super().__init__(name = name, **kwargs)
         self.color_channel = color_channel
         self.texture_channel = texture_channel
         self.texture_compositions = texture_compositions
+        self.out_channel = out_channel
+        
         
     def build(self, input_shape):
         print(self.name,input_shape)
@@ -21,12 +23,13 @@ class LowLevelExtractor(keras.layers.Layer):
         self.compositions21 = keras.layers.Convolution2D(self.texture_compositions, [9,1], name="comp21", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.compositions22 = keras.layers.Convolution2D(self.texture_compositions, [1,9], name="comp22", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.compositions3 = keras.layers.Convolution2D(self.texture_compositions, 1, name="comp3", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.compress = keras.layers.Convolution2D(self.out_channel, 1, name="compress", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
 
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs):
-        standardized = tf.image.per_image_standardization(inputs)
+        standardized = inputs #= tf.image.per_image_standardization(inputs)
         colors = self.colors(standardized)
         colors = keras.layers.concatenate([standardized, colors])
         textures = self.textures(colors)
@@ -35,8 +38,9 @@ class LowLevelExtractor(keras.layers.Layer):
         compositions2 = self.compositions21(textures)
         compositions2 = self.compositions22(compositions2)
         compositions3 = self.compositions3(textures)
-        out = keras.layers.concatenate([colors, compositions3, compositions1, compositions2])
-        return out
+        conc = keras.layers.concatenate([colors, compositions3, compositions1, compositions2])
+        compressed = self.compress(conc)
+        return compressed
 
 
         
@@ -62,13 +66,13 @@ class FrustumScaler(keras.layers.Layer):
         self.max_dist = self.min_dist + self.distance_steps * self.distance_count
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         
         image_size = tf.cast(tf.shape(images)[1:3], dtype=tf.float32)
         cropped_size = image_size * crop_factor
-        rel_scale = image_size * (self.image_hight0 / cropped_size[1]) / (self.max_dist / focal_length) 
+        rel_scale = image_size * (self.image_hight0 / cropped_size[1]) / (self.max_dist / focal_length)
         
         scales_arr = tf.TensorArray(dtype =tf.float32, size=tf.cast(self.distance_count, dtype=tf.int32),dynamic_size=False)
         for i in tf.range(self.distance_count):
@@ -79,7 +83,10 @@ class FrustumScaler(keras.layers.Layer):
         scales_list = tf.unstack(scales)
         sized_images = []
         for scale in scales_list:
-            sized_images.append(tf.image.resize(images,tf.cast(scale + 0.5, dtype = tf.int32)))
+            scale = tf.cast(scale + 0.5, dtype = tf.int32)
+            sized_image = tf.image.resize(images,scale)
+            tf.print(scale)
+            sized_images.append(sized_image)
         
         return sized_images
 
@@ -109,7 +116,7 @@ class ScaledFeatures(keras.layers.Layer):
         self.scaler = FrustumScaler(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0)
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         feature = self.extractor(images)
@@ -150,8 +157,8 @@ def main():
     inputs = tf.constant(100.,shape=[1,100,100,20])
     extractor = LowLevelExtractor()
     test_extractor= test(extractor, optimizer, training = True)
-    out = test_extractor(inputs)
-    print(out)
+    out, g = test_extractor(inputs)
+    print(out.shape)
     print("Extractor")
     
     print("FrustumScaler")

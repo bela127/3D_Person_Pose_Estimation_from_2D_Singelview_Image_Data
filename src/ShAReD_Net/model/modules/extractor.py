@@ -28,7 +28,7 @@ class MultiScaleFeatureExtractor(keras.layers.Layer):
         self.interleave = aggregation.Interleave()
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         low_level_feature = self.low_level_extractor(inputs)
         high_level_input = list(zip(low_level_feature,low_level_feature))

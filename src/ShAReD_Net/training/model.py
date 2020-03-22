@@ -20,10 +20,12 @@ class TrainingModel(tf.keras.layers.Layer):
         self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins)
         self.roi_extractor = aggregation.CropROI3D(roi_size=[1,11,11,1])
         super().build(input_shape)
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None, None, None, 3], dtype=tf.float32), (tf.TensorSpec([None], dtype=tf.float32), tf.TensorSpec([None, 15, 3], dtype=tf.float32)), tf.TensorSpec([], dtype=tf.float32), tf.TensorSpec([], dtype=tf.float32))])
     
-    @tf.function
-    def call(self, inputs, training=None):
+    def call(self, inputs):
+        training=True
         images, (batch_indexes, gt_poses), focal_length, crop_factor = inputs
+        print("tracing", self.name,images.shape, (batch_indexes.shape, gt_poses.shape), focal_length.shape, crop_factor.shape)
         feature3d = self.base_model.extractor([images, focal_length, crop_factor], training=training)
         detection = self.base_model.detector(feature3d, training = training)
         
@@ -68,7 +70,7 @@ def main():
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
     print("TrainingModel")
-    images = tf.constant(100.,shape=[4,480,480,3])
+    images = tf.constant(100.,shape=[1,384,384,3])
     
     min_loc_xyz=tf.constant([0,0,500],dtype=np.float32)
     loc_delta_xyz=tf.constant([1500,1500,1500],dtype=np.float32)
@@ -94,15 +96,14 @@ def main():
     batch_indexes = tf.cast([0,0,1,1,2,3,3], dtype=tf.float32)
     
     focal_length = tf.cast(50, dtype=tf.float32)
-    crop_factor = tf.cast(1, dtype=tf.float32)
+    crop_factor = tf.cast(0.5, dtype=tf.float32)
     
     inputs = [images, (batch_indexes, person_poses), focal_length, crop_factor]
     msf = TrainingModel(max_loc_xy = [10000,10000])    
     test_msf= test(msf, optimizer, training = True)
-    out = test_msf(inputs)
+    out, g = test_msf(inputs)
     print(msf.count_params())
-    for image1, image2 in out[0]:
-        print(image1.shape, image2.shape)
+    print(out.shape)
     print("TrainingModel")
     
     time_start = time.time()

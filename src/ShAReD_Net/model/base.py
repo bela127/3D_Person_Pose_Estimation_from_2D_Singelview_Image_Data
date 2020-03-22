@@ -13,17 +13,17 @@ class BaseModel(keras.Model):
     
     def __init__(self, key_points = 15,
                        xyz_bins = [20,20,10],
-                       est_dbc = 4,
-                       est_dfc = 16,
+                       est_dbc = 3,
+                       est_dfc = 8,
                        
-                       stage_count = 2,
-                       ext_dbc = 4,
+                       stage_count = 1,
+                       ext_dbc = 1,
                        ext_dfc = 8,
                        
-                       min_dist=500,
-                       dist_count = 5, 
-                       dist_step = 1500,
-                       image_hight0 = 480,
+                       min_dist=1000,
+                       dist_count = 3, 
+                       dist_step = 2000,
+                       image_hight0 = 384,
                        
                        name = "PoseEstimator", **kwargs):
           

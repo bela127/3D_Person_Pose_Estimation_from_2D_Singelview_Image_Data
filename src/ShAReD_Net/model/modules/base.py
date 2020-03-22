@@ -14,6 +14,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         
     def build(self, input_shape):
         print(self.name,input_shape)
+        res_shape, shc_shape = input_shape
         self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         self.big_shared2 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         
@@ -48,7 +49,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         self.big_shared4 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         input_res, input_shc = inputs
         
@@ -123,7 +124,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         self.combine = list([base_layer.SelfShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.input_count)])
         super().build(input_shape)
         
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         outs = []
         for ins in inputs: 
@@ -161,7 +162,7 @@ class MultiscaleShAReD(keras.layers.Layer):
         self.stages = list([MultiscaleShAReDStage(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.stages_count)])
         super().build(input_shape)
         
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         outs = inputs
         for stage in self.stages:
