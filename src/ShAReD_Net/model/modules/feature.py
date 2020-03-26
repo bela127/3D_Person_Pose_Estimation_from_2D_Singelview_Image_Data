@@ -13,7 +13,7 @@ class LowLevelExtractor(keras.layers.Layer):
         self.texture_compositions = texture_compositions
         self.out_channel = out_channel
         
-        
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.colors = keras.layers.Convolution2D(self.color_channel, 1, name="colors", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
@@ -28,6 +28,7 @@ class LowLevelExtractor(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs):
         standardized = inputs #= tf.image.per_image_standardization(inputs)
         colors = self.colors(standardized)
@@ -60,13 +61,15 @@ class FrustumScaler(keras.layers.Layer):
         self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
         self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
         self.min_dist = tf.cast(min_dist, dtype = tf.float32)
-        
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.max_dist = self.min_dist + self.distance_steps * self.distance_count
         super().build(input_shape)
     
     @tf.function(experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         
@@ -84,8 +87,8 @@ class FrustumScaler(keras.layers.Layer):
         sized_images = []
         for scale in scales_list:
             scale = tf.cast(scale + 0.5, dtype = tf.int32)
+            tf.print("used img scale", scale)
             sized_image = tf.image.resize(images,scale)
-            tf.print(scale)
             sized_images.append(sized_image)
         
         return sized_images
@@ -109,7 +112,8 @@ class ScaledFeatures(keras.layers.Layer):
         self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
         self.min_dist = tf.cast(min_dist, dtype = tf.float32)
         super().__init__(name = name, **kwargs)
-        
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.extractor = LowLevelExtractor()
@@ -117,6 +121,7 @@ class ScaledFeatures(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         feature = self.extractor(images)

@@ -12,6 +12,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -50,6 +51,7 @@ class ShAReDHourGlass(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         input_res, input_shc = inputs
         
@@ -116,6 +118,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.input_count = len(input_shape)
@@ -125,6 +128,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         outs = []
         for ins in inputs: 
@@ -151,22 +155,39 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         return config
     
 class MultiscaleShAReD(keras.layers.Layer):
-    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, name = "MultiscaleShAReD", **kwargs):
+    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, gpus=None, name = "MultiscaleShAReD", **kwargs):
         super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count
-        
+        self.gpus = gpus
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.stages = list([MultiscaleShAReDStage(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.stages_count)])
         super().build(input_shape)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         outs = inputs
-        for stage in self.stages:
-            outs = stage(outs, training=training)
+        if self.gpus and len(self.gpus) == len(self.stages):
+            for stage, gpu in zip(self.stages,self.gpus):
+                print("stage using", gpu)
+                with tf.device(gpu):
+                    outs = stage(outs, training=training)
+        elif self.gpus and len(self.gpus) == 1:
+            print("high_level using", gpus[0])
+            with tf.device(gpus[0]):
+                for stage in self.stages:
+                    outs = stage(outs, training=training)
+        elif self.gpus:
+            raise IndexError("there should be as many GPUs as stages, a singel GPU or None GPUs for autoselect")
+        else:
+            for stage in self.stages:
+                outs = stage(outs, training=training)
+        
         return outs
         
     def get_config(self):

@@ -9,9 +9,12 @@ import ShAReD_Net.model.layer.aggregation as aggregation
 
 class PersonDetector(keras.layers.Layer):
     
-    def __init__(self, name = "PersonDetector", **kwargs):
+    def __init__(self,target_gpu = None, name = "PersonDetector", **kwargs):
+        self.target_gpu = target_gpu
+
         super().__init__(name = name, **kwargs)
-        
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.expand = aggregation.Expand3D()
@@ -81,8 +84,17 @@ class PersonDetector(keras.layers.Layer):
 
         super().build(input_shape)
     
-    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
+        if self.target_gpu:
+            print("detector using", self.target_gpu)
+            with tf.device(self.target_gpu):
+                return self._compute(inputs, training)
+        else:
+            return self._compute(inputs, training)
+    
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
+    def _compute(self, inputs, training):
         feature = inputs
         expanded = self.expand(feature)
         conf2 = self.conf2(expanded)

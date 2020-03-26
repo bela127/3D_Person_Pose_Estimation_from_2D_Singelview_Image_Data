@@ -13,17 +13,21 @@ class BaseModel(keras.Model):
     
     def __init__(self, key_points = 15,
                        xyz_bins = [20,20,10],
-                       est_dbc = 3,
+                       est_dbc = 4,
                        est_dfc = 8,
                        
-                       stage_count = 1,
-                       ext_dbc = 1,
+                       stage_count = 2,
+                       ext_dbc = 2,
                        ext_dfc = 8,
                        
-                       min_dist=1000,
-                       dist_count = 3, 
-                       dist_step = 2000,
+                       min_dist=100,
+                       dist_count = 5, 
+                       dist_step = 500,
                        image_hight0 = 384,
+                 
+                       low_level_gpu = None,
+                       high_level_gpus = None,
+                       target_gpu = None,
                        
                        name = "PoseEstimator", **kwargs):
           
@@ -42,11 +46,15 @@ class BaseModel(keras.Model):
         self.dist_step = tf.cast(dist_step, dtype = tf.float32)
         self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
         
+        self.low_level_gpu = low_level_gpu,
+        self.high_level_gpus = high_level_gpus
+        self.target_gpu = target_gpu
+        
         super().__init__(name = name, **kwargs)
         
-        self.extractor = extractor.MultiScaleFeatureExtractor(stages_count = self.stage_count, dense_blocks_count = self.ext_dbc, dense_filter_count = self.ext_dfc, distance_count = self.dist_count, image_hight0 = self.image_hight0, distance_steps = self.dist_step, min_dist = self.min_dist)
-        self.detector = detector.PersonDetector()
-        self.estimator = estimator.PoseEstimator(key_points = self.key_points, depth_bins = self.z_bins , xy_bins = self.xy_bins, dense_blocks_count = self.est_dbc, dense_filter_count = self.est_dfc)
+        self.extractor = extractor.MultiScaleFeatureExtractor(stages_count = self.stage_count, dense_blocks_count = self.ext_dbc, dense_filter_count = self.ext_dfc, distance_count = self.dist_count, image_hight0 = self.image_hight0, distance_steps = self.dist_step, min_dist = self.min_dist,low_level_gpu = self.low_level_gpu, high_level_gpus=self.high_level_gpus)
+        self.detector = detector.PersonDetector(target_gpu = self.target_gpu)
+        self.estimator = estimator.PoseEstimator(key_points = self.key_points, depth_bins = self.z_bins , xy_bins = self.xy_bins, dense_blocks_count = self.est_dbc, dense_filter_count = self.est_dfc, target_gpu = self.target_gpu)
         self.expand = aggregation.Expand3D()
         
     def get_config(self):

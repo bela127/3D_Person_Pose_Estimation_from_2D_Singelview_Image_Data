@@ -13,7 +13,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
         self.rate = rate
         self.filter_size = filter_size
         
-        
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.bn = keras.layers.BatchNormalization(input_shape = [None, None, input_shape[-1]])
@@ -23,6 +23,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         bn = self.bn(inputs, training=training)
         do = self.do(bn, training=training)
@@ -45,12 +46,14 @@ class DenseBlock(keras.layers.Layer):
         self.rate = rate
         self.filter_size = filter_size
 
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.block = BnDoConfReluConfRelu(filter_count = self.filter_count, rate = self.rate, filter_size = self.filter_size)
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         block = self.block(inputs, training=training)
         concat = keras.layers.concatenate([inputs, block])
@@ -61,21 +64,25 @@ class DenseBlock(keras.layers.Layer):
         return config
         
 class DenseModule(keras.layers.Layer):
-    def __init__(self, blocks_count, filter_count, rate = 0.15, filter_size = [3,3], name = "DenseModule", **kwargs):
+    def __init__(self, blocks_count, filter_count, rate = 0.15, filter_size = [3,3], input_depth = 24, name = "DenseModule", **kwargs):
         super().__init__(name = name, **kwargs)
         self.blocks_count = blocks_count
         self.filter_count = filter_count
         self.rate = rate
         self.filter_size = filter_size
-        
+        self.input_depth = input_depth
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
+        self.compress = keras.layers.Convolution2D(self.input_depth, kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
         self.blocks = [DenseBlock(filter_count = self.filter_count, rate = self.rate, filter_size = self.filter_size) for i in range(self.blocks_count)]
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
-        prev_block = inputs
+        prev_block = self.compress(inputs)
         for next_block in self.blocks:
             prev_block = next_block(prev_block, training=training)
         return prev_block
@@ -93,7 +100,7 @@ class ShReD(keras.layers.Layer):
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
         
-        
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -102,6 +109,7 @@ class ShReD(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         concat = keras.layers.concatenate(inputs)
@@ -118,6 +126,7 @@ class Attention(keras.layers.Layer):
     def __init__(self, name = "Attention", **kwargs):
         super().__init__(name = name, **kwargs)     
         
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         ins_shape, att_shape = input_shape
@@ -125,6 +134,7 @@ class Attention(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         ins, att = inputs
         attention = self.attention(att)
@@ -140,6 +150,7 @@ class ResAttention(keras.layers.Layer):
     def __init__(self, name = "ResAttention", **kwargs):
         super().__init__(name = name, **kwargs)     
         
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -148,6 +159,7 @@ class ResAttention(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         inputs_res, inputs_shc = inputs
         attention_res = self.attention_res(inputs)
@@ -167,7 +179,7 @@ class ShAReD(keras.layers.Layer):
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
         
-        
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -176,6 +188,7 @@ class ShAReD(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         attention = self.attention(inputs)
@@ -194,7 +207,7 @@ class SelfShAReD(keras.layers.Layer):
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
         
-        
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -204,6 +217,7 @@ class SelfShAReD(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         outputs_res, outputs_shc = self.shared1([inputs_res, inputs_shc], training=training)
@@ -220,7 +234,8 @@ class Scale(keras.layers.Layer):
         super().__init__(name = name, **kwargs)
         self.destination_channel = destination_channel
         self.new_shape = new_shape
-        
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         if self.destination_channel is None:
@@ -232,6 +247,7 @@ class Scale(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, destination_size = None):
         
         compressed_input = self.compress_input(inputs)
@@ -265,7 +281,8 @@ class ScaledShAReD(keras.layers.Layer):
         self.dense_filter_count = dense_filter_count
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
-        
+    
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -276,6 +293,7 @@ class ScaledShAReD(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
         inputs_shc_shape = tf.shape(inputs_shc)
@@ -296,11 +314,13 @@ class Merge(keras.layers.Layer):
     def __init__(self, name = "Merge", **kwargs):
         super().__init__(name = name, **kwargs)
         
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, merge_type):
         if merge_type == Merge.MergeType.CENTER:
             small, normal, big = inputs
@@ -342,6 +362,7 @@ class Mix(keras.layers.Layer):
     def __init__(self, name = "Mix", **kwargs):
         super().__init__(name = name, **kwargs)
 
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name, input_shape)
         input_count = len(input_shape)
@@ -349,6 +370,7 @@ class Mix(keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         inputs_u = [None] + inputs[:-1]
         inputs_m = inputs

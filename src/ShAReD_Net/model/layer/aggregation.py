@@ -12,6 +12,7 @@ class CropROI3D(tf.keras.layers.Layer):
         self.roi_size = np.asarray(roi_size,dtype=np.int32)
         super().__init__(name = name, **kwargs)
         
+    @tf.Module.with_name_scope    
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_shape, indexe_shape = inputs_shape
@@ -19,7 +20,8 @@ class CropROI3D(tf.keras.layers.Layer):
         self.offset = tf.cast(self.roi_size % 2, dtype=tf.int32)
         super().build(inputs_shape)
     
-    #@tf.function
+    @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         feature3D, roi_indexes = inputs
         roi_indexes = tf.cast(roi_indexes, dtype=tf.int32)
@@ -51,11 +53,13 @@ class CropROI2D(tf.keras.layers.Layer):
     def __init__(self, name = "CropROI2D", **kwargs):
         super().__init__(name = name, **kwargs)
         
+    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
     
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         feature, ROIs = inputs
 
@@ -79,6 +83,7 @@ class MaskToROI(tf.keras.layers.Layer):
         self.roi_size = tf.cast(roi_size, dtype=tf.int32)
         self.threshold = tf.cast(threshold, dtype=tf.float32)
     
+    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.roi_half_size = tf.cast(self.roi_size / 2, dtype=tf.int32)
@@ -86,6 +91,7 @@ class MaskToROI(tf.keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs, **kwargs):
         
         mask = inputs
@@ -122,6 +128,7 @@ class Interleave(tf.keras.layers.Layer):
     def __init__(self, name = "Interleave", **kwargs):
         super().__init__(name = name, **kwargs)
     
+    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         res_shape, shc_shape = inputs_shape
@@ -130,6 +137,7 @@ class Interleave(tf.keras.layers.Layer):
         super().build(inputs_shape)
     
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         res, shc = inputs
         compressed = self.compress(shc)
@@ -146,11 +154,13 @@ class Combine3D(tf.keras.layers.Layer):
     def __init__(self, name = "Combine3D", **kwargs):
         super().__init__(name = name, **kwargs)
     
+    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
     
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         size = tf.shape(inputs[-1])[1:3]
         same_sized = []
@@ -171,6 +181,7 @@ class Expand3D(tf.keras.layers.Layer):
     def __init__(self, name = "Expand3D", **kwargs):
         super().__init__(name = name, **kwargs)
     
+    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         input_shape = inputs_shape
@@ -198,6 +209,7 @@ class Expand3D(tf.keras.layers.Layer):
         super().build(inputs_shape)
     
     @tf.function
+    @tf.Module.with_name_scope
     def call(self, inputs):
         feature = inputs
         tconf1 = self.tconf1(feature)
