@@ -6,29 +6,90 @@ keras = tf.keras
 
 
 class LowLevelExtractor(keras.layers.Layer):
-    def __init__(self, color_channel = 13, texture_channel = 16, texture_compositions = 16, out_channel = 32, name = "Extractor", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, color_channel = 13, texture_channel = 16, texture_compositions = 16, out_channel = 32, name = "Extractor", dtype = tf.float32, **kwargs):
+        super().__init__(name = name,dtype=dtype, **kwargs)
         self.color_channel = color_channel
         self.texture_channel = texture_channel
         self.texture_compositions = texture_compositions
         self.out_channel = out_channel
         
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
-        self.colors = keras.layers.Convolution2D(self.color_channel, 1, name="colors", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.textures = keras.layers.DepthwiseConv2D(kernel_size = 3,depth_multiplier = self.texture_channel, name="textures", padding='SAME', activation=tf.nn.leaky_relu, depthwise_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.compositions11 = keras.layers.Convolution2D(self.texture_compositions, [1,9], name="comp11", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.compositions12 = keras.layers.Convolution2D(self.texture_compositions, [9,1], name="comp12", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.compositions21 = keras.layers.Convolution2D(self.texture_compositions, [9,1], name="comp21", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.compositions22 = keras.layers.Convolution2D(self.texture_compositions, [1,9], name="comp22", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.compositions3 = keras.layers.Convolution2D(self.texture_compositions, 1, name="comp3", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.compress = keras.layers.Convolution2D(self.out_channel, 1, name="compress", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.colors = keras.layers.Convolution2D(self.color_channel,
+                                                 1,
+                                                 name="colors",
+                                                 padding='SAME',
+                                                 activation=tf.nn.leaky_relu,
+                                                 kernel_initializer=tf.initializers.he_normal(),
+                                                 bias_initializer=tf.initializers.he_uniform(),
+                                                 kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                 dtype = tf.float32,
+                                                 )
+        self.textures = keras.layers.DepthwiseConv2D(kernel_size = 3,depth_multiplier = self.texture_channel, name="textures", padding='SAME', activation=tf.nn.leaky_relu, depthwise_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform(), dtype = tf.float32)
+        self.compositions11 = keras.layers.Convolution2D(self.texture_compositions,
+                                                         [1,9],
+                                                         name="comp11",
+                                                         padding='SAME',
+                                                         activation=tf.nn.leaky_relu,
+                                                         kernel_initializer=tf.initializers.he_normal(),
+                                                         bias_initializer=tf.initializers.he_uniform(),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         dtype = tf.float32,
+                                                         )
+        self.compositions12 = keras.layers.Convolution2D(self.texture_compositions,
+                                                         [9,1],
+                                                         name="comp12",
+                                                         padding='SAME',
+                                                         activation=tf.nn.leaky_relu,
+                                                         kernel_initializer=tf.initializers.he_normal(),
+                                                         bias_initializer=tf.initializers.he_uniform(),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         dtype = tf.float32,
+                                                         )
+        self.compositions21 = keras.layers.Convolution2D(self.texture_compositions,
+                                                         [9,1],
+                                                         name="comp21",
+                                                         padding='SAME',
+                                                         activation=tf.nn.leaky_relu, 
+                                                         kernel_initializer=tf.initializers.he_normal(),
+                                                         bias_initializer=tf.initializers.he_uniform(),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         dtype = tf.float32,
+                                                         )
+        self.compositions22 = keras.layers.Convolution2D(self.texture_compositions,
+                                                         [1,9],
+                                                         name="comp22",
+                                                         padding='SAME',
+                                                         activation=tf.nn.leaky_relu,
+                                                         kernel_initializer=tf.initializers.he_normal(),
+                                                         bias_initializer=tf.initializers.he_uniform(),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         dtype = tf.float32,
+                                                         )
+        self.compositions3 = keras.layers.Convolution2D(self.texture_compositions,
+                                                        1,
+                                                        name="comp3",
+                                                        padding='SAME',
+                                                        activation=tf.nn.leaky_relu,
+                                                        kernel_initializer=tf.initializers.he_normal(),
+                                                        bias_initializer=tf.initializers.he_uniform(),
+                                                        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                        dtype = tf.float32,
+                                                        )
+        self.compress = keras.layers.Convolution2D(self.out_channel,
+                                                   1,
+                                                   name="compress",
+                                                   padding='SAME',
+                                                   activation=tf.nn.leaky_relu,
+                                                   kernel_initializer=tf.initializers.he_normal(),
+                                                   bias_initializer=tf.initializers.he_uniform(),
+                                                   kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                   dtype = tf.float32,
+                                                   )
 
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs):
         standardized = inputs #= tf.image.per_image_standardization(inputs)
         colors = self.colors(standardized)
@@ -55,21 +116,19 @@ class LowLevelExtractor(keras.layers.Layer):
 
 class FrustumScaler(keras.layers.Layer):
     
-    def __init__(self, distance_count = 10, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "FrustumScaler", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, distance_count = 10, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "FrustumScaler", dtype=tf.float32, **kwargs):
+        super().__init__(name = name, dtype=dtype, **kwargs)
         self.distance_count = tf.cast(distance_count, dtype = tf.float32)
         self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
         self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
         self.min_dist = tf.cast(min_dist, dtype = tf.float32)
     
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.max_dist = self.min_dist + self.distance_steps * self.distance_count
         super().build(input_shape)
     
     @tf.function(experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         
@@ -78,7 +137,7 @@ class FrustumScaler(keras.layers.Layer):
         rel_scale = image_size * (self.image_hight0 / cropped_size[1]) / (self.max_dist / focal_length)
         
         scales_arr = tf.TensorArray(dtype =tf.float32, size=tf.cast(self.distance_count, dtype=tf.int32),dynamic_size=False)
-        for i in tf.range(self.distance_count):
+        for i in tf.range(self.distance_count, dtype = tf.float32):
             scale = rel_scale * ((self.min_dist + self.distance_steps * tf.cast(i, dtype =tf.float32)) / focal_length)
             scales_arr = scales_arr.write(tf.cast(i, dtype=tf.int32), scale)
         scales = scales_arr.stack()
@@ -106,14 +165,13 @@ class FrustumScaler(keras.layers.Layer):
 
 class ScaledFeatures(keras.layers.Layer):
     
-    def __init__(self, distance_count = 10, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "ScaledFeatures", **kwargs):
+    def __init__(self, distance_count = 10, image_hight0 = 480., distance_steps = 100., min_dist = 100., name = "ScaledFeatures", dtype = tf.float32, **kwargs):
         self.distance_count = tf.cast(distance_count, dtype = tf.float32)
         self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
         self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
         self.min_dist = tf.cast(min_dist, dtype = tf.float32)
-        super().__init__(name = name, **kwargs)
+        super().__init__(name = name,dtype=dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.extractor = LowLevelExtractor()
@@ -121,7 +179,6 @@ class ScaledFeatures(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs):
         images, focal_length, crop_factor = inputs
         feature = self.extractor(images)

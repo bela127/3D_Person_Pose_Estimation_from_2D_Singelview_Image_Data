@@ -8,11 +8,10 @@ import ShAReD_Net.training.loss.base as loss_base
 
     
 class CropROI3D(tf.keras.layers.Layer):
-    def __init__(self, roi_size = [1,9,9,1], name = "CropROI3D", **kwargs):
+    def __init__(self, roi_size = [1,9,9,1], name = "CropROI3D",dtype=tf.float32, **kwargs):
         self.roi_size = np.asarray(roi_size,dtype=np.int32)
-        super().__init__(name = name, **kwargs)
+        super().__init__(name = name,dtype=dtype, **kwargs)
         
-    @tf.Module.with_name_scope    
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_shape, indexe_shape = inputs_shape
@@ -21,7 +20,6 @@ class CropROI3D(tf.keras.layers.Layer):
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         feature3D, roi_indexes = inputs
         roi_indexes = tf.cast(roi_indexes, dtype=tf.int32)
@@ -50,16 +48,14 @@ class CropROI3D(tf.keras.layers.Layer):
         return crops
 
 class CropROI2D(tf.keras.layers.Layer):
-    def __init__(self, name = "CropROI2D", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, name = "CropROI2D", dtype=tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
         
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         feature, ROIs = inputs
 
@@ -78,12 +74,12 @@ class CropROI2D(tf.keras.layers.Layer):
 crop_roi_2d = CropROI2D()
 
 class MaskToROI(tf.keras.layers.Layer):
-    def __init__(self, roi_size, threshold = 0.5, name = "MaskToROI", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, roi_size, threshold = 0.5, name = "MaskToROI", dtype=tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
         self.roi_size = tf.cast(roi_size, dtype=tf.int32)
         self.threshold = tf.cast(threshold, dtype=tf.float32)
     
-    @tf.Module.with_name_scope
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         self.roi_half_size = tf.cast(self.roi_size / 2, dtype=tf.int32)
@@ -91,7 +87,6 @@ class MaskToROI(tf.keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs, **kwargs):
         
         mask = inputs
@@ -125,19 +120,27 @@ class MaskToROI(tf.keras.layers.Layer):
         return config
 
 class Interleave(tf.keras.layers.Layer):
-    def __init__(self, name = "Interleave", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, name = "Interleave", dtype=tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
+    
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         res_shape, shc_shape = inputs_shape
-        self.compress = tf.keras.layers.Convolution2D(res_shape[-1], 1, name="compress", padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.compress = tf.keras.layers.Convolution2D(res_shape[-1],
+                                                      1,
+                                                      name="compress",
+                                                      padding='SAME',
+                                                      activation=tf.nn.leaky_relu,
+                                                      kernel_initializer=tf.initializers.he_normal(),
+                                                      bias_initializer=tf.initializers.he_uniform(),
+                                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                      dtype=tf.float32,
+                                                      )
         self.out_chanel = res_shape[-1] * 2
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         res, shc = inputs
         compressed = self.compress(shc)
@@ -151,16 +154,15 @@ class Interleave(tf.keras.layers.Layer):
         return config
 
 class Combine3D(tf.keras.layers.Layer):
-    def __init__(self, name = "Combine3D", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, name = "Combine3D", dtype=tf.float32, **kwargs):
+        super().__init__(name = name,dtype =dtype, **kwargs)
     
-    @tf.Module.with_name_scope
+    
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         size = tf.shape(inputs[-1])[1:3]
         same_sized = []
@@ -178,10 +180,10 @@ class Combine3D(tf.keras.layers.Layer):
 combine3d = Combine3D()  
     
 class Expand3D(tf.keras.layers.Layer):
-    def __init__(self, name = "Expand3D", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, name = "Expand3D", dtype=tf.float32, **kwargs):
+        super().__init__(name = name,dtype=dtype, **kwargs)
     
-    @tf.Module.with_name_scope
+    
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         input_shape = inputs_shape
@@ -191,6 +193,8 @@ class Expand3D(tf.keras.layers.Layer):
                                         padding='same',
                                         activation=tf.nn.leaky_relu,
                                         kernel_initializer=tf.initializers.he_uniform(),
+                                        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                        dtype=tf.float32,
                                         )
         self.tconf2 = tf.keras.layers.Conv3DTranspose(filters = input_shape[-1]/2,
                                         kernel_size = [3,3,3],
@@ -198,6 +202,8 @@ class Expand3D(tf.keras.layers.Layer):
                                         padding='same',
                                         activation=tf.nn.leaky_relu,
                                         kernel_initializer=tf.initializers.he_uniform(),
+                                        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                        dtype=tf.float32,
                                         )
         self.conf1 = tf.keras.layers.Convolution3D(filters = input_shape[-1]/2,
                                       kernel_size = [1,1,1],
@@ -205,11 +211,12 @@ class Expand3D(tf.keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
+                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      dtype=tf.float32,
                                       )
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         feature = inputs
         tconf1 = self.tconf1(feature)

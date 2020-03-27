@@ -54,10 +54,10 @@ class Scale(keras.layers.Layer):
     def build(self, input_shape):
         if self.destination_channel is None:
             self.destination_channel = input_shape[-1]
-        self.compress_input = keras.layers.Convolution2D(int(input_shape[-1]/2), kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.conv = keras.layers.Convolution2D(input_shape[-1], kernel_size=3, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.compress_input = keras.layers.Convolution2D(int(input_shape[-1]/2), kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform(), dtype=tf.float32)
+        self.conv = keras.layers.Convolution2D(input_shape[-1], kernel_size=3, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform(), dtype=tf.float32)
         self.pool = keras.layers.MaxPool2D(pool_size=3,strides=1,padding="SAME")
-        self.compress_output = keras.layers.Convolution2D(self.destination_channel, kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.compress_output = keras.layers.Convolution2D(self.destination_channel, kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform(), dtype=tf.float32)
         super().build(input_shape)
 
     @tf.function

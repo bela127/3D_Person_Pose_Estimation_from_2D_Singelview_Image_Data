@@ -9,7 +9,7 @@ import ShAReD_Net.model.layer.base as base_layer
 
 class PoseEstimator(keras.layers.Layer):
     
-    def __init__(self, key_points = 15, depth_bins = 10 , xy_bins = [20,20], dense_blocks_count = 4, dense_filter_count = 32, target_gpu=None, name = "PoseEstimator", **kwargs):
+    def __init__(self, key_points = 15, depth_bins = 10 , xy_bins = [20,20], dense_blocks_count = 4, dense_filter_count = 32, target_gpu=None, name = "PoseEstimator", dtype = tf.float32, **kwargs):
         self.key_points = tf.cast(key_points, dtype = tf.int32)
         self.depth_bins = tf.cast(depth_bins, dtype = tf.int32)
         self.xy_bins = tf.cast(xy_bins, dtype = tf.int32)
@@ -17,9 +17,8 @@ class PoseEstimator(keras.layers.Layer):
         self.dense_filter_count = dense_filter_count
         
         self.target_gpu = target_gpu
-        super().__init__(name = name, **kwargs)
+        super().__init__(name = name,dtype=dtype, **kwargs)
         
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         output_depth = self.key_points + self.depth_bins
@@ -46,7 +45,6 @@ class PoseEstimator(keras.layers.Layer):
             return self._compute(inputs, training)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def _compute(self, inputs, training):
         self_shared1_res, self_shared1_shc = self.self_shared1([inputs,inputs], training=training)
         scaled_shc1 = self.scale_shc1(self_shared1_shc)

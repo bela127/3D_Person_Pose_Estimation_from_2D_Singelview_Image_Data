@@ -3,11 +3,10 @@ import time
 import tensorflow as tf
 
 class DiscretSigmoid(tf.keras.layers.Layer):
-    def __init__(self, name = "DiscretSigmoid", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, name = "DiscretSigmoid",dtype=tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
     @tf.function(experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         if training:
             activated = self.discret_sigmoid_training(inputs)

@@ -3,14 +3,14 @@ import numpy as np
 
 class FeatureToLocationPropabilityMap(tf.keras.layers.Layer):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "FeatureToLocationPropabilityMap", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, feature):
         shape = tf.shape(feature)
         flat = tf.reshape(feature,[shape[0], -1])
+        flat = tf.nn.tanh(flat) #fixing instability with relu and softmax giving nan: https://github.com/keras-team/keras/issues/1244#issuecomment-164170261
         flat = tf.nn.softmax(flat)
         return tf.reshape(flat, shape)
     
@@ -22,14 +22,13 @@ feature_to_location_propability_map = FeatureToLocationPropabilityMap()
 
 class LocationMap(tf.keras.layers.Layer):
 
-    def __init__(self, min_loc=[0,0], max_loc=[3000,3000], bins=[10,10]):
-        super().__init__()
+    def __init__(self, min_loc=[0,0], max_loc=[3000,3000], bins=[10,10], name = "LocationMap", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
         self.bins = tf.constant(bins, dtype = tf.float32)
         self.min_loc = tf.constant(min_loc, dtype = tf.float32)
         self.max_loc = tf.constant(max_loc, dtype = tf.float32)
         self.build(None)
 
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         self.loc_delta = (self.max_loc - self.min_loc) / self.bins
         loc_map = np.meshgrid(*[np.arange(_min_loc, _max_loc, _delta) for _min_loc, _max_loc, _delta in  zip(self.min_loc, self.max_loc, self.loc_delta)])
@@ -38,7 +37,6 @@ class LocationMap(tf.keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         offset = inputs
         return self.loc_map + offset
@@ -53,11 +51,10 @@ class LocationMap(tf.keras.layers.Layer):
 
 class PropabilityMapToLocation(tf.keras.layers.Layer):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "PropabilityMapToLocation", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, loc_prop_map, loc_map):
         return tf.reduce_sum(loc_prop_map * loc_map, axis=[1,2])
     
@@ -69,10 +66,9 @@ propability_map_to_location = PropabilityMapToLocation()
     
 class PropabilityMapToIndex(tf.keras.layers.Layer):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "PropabilityMapToIndex", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
         
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         loc_x = tf.range(input_shape[1], dtype=tf.float32)
         loc_y = tf.range(input_shape[2], dtype=tf.float32)
@@ -82,7 +78,6 @@ class PropabilityMapToIndex(tf.keras.layers.Layer):
         super().build(input_shape)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, loc_prop_map):
         indexes = tf.reduce_sum(loc_prop_map * self.index_map, axis=[1,2])
         indexes = tf.minimum(indexes, tf.cast(tf.shape(loc_prop_map)[1:3]-1, dtype=tf.float32))
@@ -96,17 +91,15 @@ propability_map_to_index = PropabilityMapToIndex()
 
 class VarianceLocatonLoss(tf.keras.layers.Layer):
     
-    def __init__(self, loc_delta):
-        super().__init__()
+    def __init__(self, loc_delta, name = "VarianceLocatonLoss", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
         self.loc_delta = loc_delta
     
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         self.variance_offset = (self.loc_delta/2)**2
         super().build(input_shape)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, loc_prop_map, loc_map, gt_loc):
         gt_loc_shape = tf.shape(gt_loc)
         gt_loc = tf.reshape(gt_loc,[gt_loc_shape[0],1,1,gt_loc_shape[-1]])
@@ -115,13 +108,12 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
         return shifted_var
 
 class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
-    def __init__(self, loc_delta):
-        super().__init__()
+    def __init__(self, loc_delta, name = "VarianceLocationAndPossitionLoss", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
         self.mse = tf.keras.losses.MeanSquaredError(tf.keras.losses.Reduction.NONE)
         self.vll = VarianceLocatonLoss(loc_delta)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, loc_prop_map, loc, loc_map, gt_loc):
         mse = self.mse(loc, gt_loc)
         vll = self.vll(loc_prop_map, loc_map, gt_loc)
@@ -129,14 +121,13 @@ class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
 
 class LocationToIndex(tf.keras.layers.Layer):
     
-    def __init__(self, loc_delta, min_loc, loc_bins):
-        super().__init__()
+    def __init__(self, loc_delta, min_loc, loc_bins, name = "LocationToIndex", dtype = tf.float32, **kwargs):
+        super().__init__(name=name,dtype=dtype,**kwargs)
         self.loc_delta = tf.cast(loc_delta,dtype=tf.float32)
         self.max_index = tf.cast(loc_bins,dtype=tf.float32) - 1
         self.min_loc = tf.cast(min_loc,dtype=tf.float32)
 
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, loc):
         indexes = (loc - self.min_loc) / self.loc_delta
         indexes = tf.maximum(indexes, 0)
@@ -147,7 +138,7 @@ def main():
     bins = [30,15]
     bin0_half = int(bins[0]/2)
     bin1_half = int(bins[1]/2)
-    loc_prop_map = np.zeros([4,bins[0],bins[1],1],dtype=np.float32)
+    loc_prop_map = np.zeros([4,bins[0],bins[1],1],dtype=tf.float32)
     loc_prop_map[0,bin0_half,bin1_half,0]=0.5
     loc_prop_map[0,bin0_half+1,bin1_half+1,0]=0.5
     loc_prop_map[1,bin0_half-1,bin1_half-1,0]=0.5
@@ -175,7 +166,7 @@ def main():
     indexes = pmti(loc_prop_map)
     print("indexes map:",indexes)
     
-    gt_loc = np.asarray([[1550,1550],[1550,1550],[1500,1500],[1500,1500]],dtype=np.float32)
+    gt_loc = np.asarray([[1550,1550],[1550,1550],[1500,1500],[1500,1500]],dtype=tf.float32)
     
     vll = VarianceLocatonLoss(loc_map_op.loc_delta)
     loss = vll(loc_prop_map, loc_map, gt_loc)
@@ -187,4 +178,6 @@ def main():
 
 
 if __name__ == "__main__":
+    tf.profiler.experimental.start('/home/inferics/Docker/volumes/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/logdir')
     main()
+    tf.profiler.experimental.stop()

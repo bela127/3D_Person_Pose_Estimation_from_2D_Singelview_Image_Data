@@ -7,12 +7,11 @@ keras = tf.keras
 import ShAReD_Net.model.layer.base as base_layer
 
 class ShAReDHourGlass(keras.layers.Layer):
-    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "ShAReDHourGlass", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "ShAReDHourGlass", dtype = tf.float32, **kwargs):
+        super().__init__(name = name,dtype=dtype, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -51,7 +50,6 @@ class ShAReDHourGlass(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         input_res, input_shc = inputs
         
@@ -113,12 +111,11 @@ class ShAReDHourGlass(keras.layers.Layer):
         return config
     
 class MultiscaleShAReDStage(keras.layers.Layer):
-    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "MultiscaleShAReDStage", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "MultiscaleShAReDStage", dtype = tf.float32, **kwargs):
+        super().__init__(name = name,dtype=dtype, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.input_count = len(input_shape)
@@ -128,7 +125,6 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         super().build(input_shape)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         outs = []
         for ins in inputs: 
@@ -155,21 +151,19 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         return config
     
 class MultiscaleShAReD(keras.layers.Layer):
-    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, gpus=None, name = "MultiscaleShAReD", **kwargs):
-        super().__init__(name = name, **kwargs)
+    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, gpus=None, name = "MultiscaleShAReD", dtype = tf.float32, **kwargs):
+        super().__init__(name = name,dtype=dtype, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count
         self.gpus = gpus
     
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.stages = list([MultiscaleShAReDStage(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.stages_count)])
         super().build(input_shape)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         outs = inputs
         if self.gpus and len(self.gpus) == len(self.stages):

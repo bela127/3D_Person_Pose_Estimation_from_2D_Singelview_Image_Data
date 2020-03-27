@@ -7,10 +7,9 @@ import ShAReD_Net.model.layer.heatmap_1d as heatmap_1d
 import ShAReD_Net.model.layer.heatmap_2d as heatmap_2d
 
 class LimbLength(tf.keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "LimbLength", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
         
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         self.limb_connection = tf.constant([0,
@@ -32,7 +31,6 @@ class LimbLength(tf.keras.layers.Layer):
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         inputs_shape = tf.shape(inputs)
         size = inputs_shape[0]*inputs_shape[1]
@@ -49,10 +47,9 @@ class LimbLength(tf.keras.layers.Layer):
 limb_length = LimbLength()
 
 class SymmetryLoss(tf.keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "SymmetryLoss", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         self.sym_connection = tf.constant([0,
@@ -74,7 +71,6 @@ class SymmetryLoss(tf.keras.layers.Layer):
         super().build(inputs_shape)
     
     @tf.function
-    @tf.Module.with_name_scope
     def call(self, inputs):
         inputs_shape = tf.shape(inputs)
         size = inputs_shape[0]*inputs_shape[1]
@@ -90,8 +86,8 @@ class SymmetryLoss(tf.keras.layers.Layer):
 symmetry_loss = SymmetryLoss()
 
 class KeypointBatchToPoseGT(tf.keras.layers.Layer):
-    def __init__(self, loc_delta_xy, min_loc_xy, max_idx_xy, loc_delta_z, min_loc_z, max_idx_z):
-        super().__init__()
+    def __init__(self, loc_delta_xy, min_loc_xy, max_idx_xy, loc_delta_z, min_loc_z, max_idx_z, name = "KeypointBatchToPoseGT", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
         self.loc_delta_xy = loc_delta_xy
         self.min_loc_xy = min_loc_xy
         self.max_idx_xy = tf.cast(max_idx_xy,dtype=tf.float32)
@@ -99,7 +95,6 @@ class KeypointBatchToPoseGT(tf.keras.layers.Layer):
         self.max_idx_z = max_idx_z
         self.loc_delta_z = loc_delta_z
         
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         self.lti = heatmap_2d.LocationToIndex(self.loc_delta_xy, self.min_loc_xy, self.max_idx_xy)
@@ -108,7 +103,6 @@ class KeypointBatchToPoseGT(tf.keras.layers.Layer):
         super().build(inputs_shape)
 
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs):
         gt_xy = inputs[:,:,0:2]
         gt_xy = tf.minimum(gt_xy,self.max_loc_xy)
@@ -135,12 +129,11 @@ class KeypointBatchToPoseGT(tf.keras.layers.Layer):
 
 class PoseLossDepth(tf.keras.layers.Layer):
     
-    def __init__(self, depth_bins):
+    def __init__(self, depth_bins, name = "PoseLossDepth", dtype = tf.float32, **kwargs):
         self.depth_bins = tf.cast(depth_bins, tf.int32)
         self.loc_map_z = heatmap_1d.LocationMap(bins = self.depth_bins, min_loc=-150,max_loc=150)
-        super().__init__()
+        super().__init__(name = name, dtype = dtype, **kwargs)
         
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_z_shape, gt_loc_z_shape, gt_index_z_shape = inputs_shape
@@ -152,7 +145,6 @@ class PoseLossDepth(tf.keras.layers.Layer):
         super().build(inputs_shape)
 
     # is a @tf.function with defined input shape
-    @tf.Module.with_name_scope
     def call(self, inputs):
         features_z, gt_loc_z, gt_index_z = inputs
 
@@ -185,11 +177,10 @@ class PoseLossDepth(tf.keras.layers.Layer):
     
 class PoseLoss2D(tf.keras.layers.Layer):
     
-    def __init__(self, xy_bins):
+    def __init__(self, xy_bins, name = "PoseLoss2D", dtype = tf.float32, **kwargs):
         self.loc_map_xy = heatmap_2d.LocationMap(bins=xy_bins, min_loc=[-150,-150],max_loc=[150, 150])
-        super().__init__()
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         features_xy_shape, gt_xy_shape = inputs_shape
@@ -202,7 +193,6 @@ class PoseLoss2D(tf.keras.layers.Layer):
         super().build(inputs_shape)
 
     # is a @tf.function with defined input shape
-    @tf.Module.with_name_scope
     def call(self, inputs):
         features_xy, gt_xy = inputs
         features_xy = tf.transpose(features_xy, [3,0,1,2])
@@ -238,12 +228,11 @@ class PoseLoss2D(tf.keras.layers.Layer):
 
 class PoseLoss(tf.keras.layers.Layer):
     
-    def __init__(self, key_points = 15, depth_bins = 10):
-        super().__init__()
+    def __init__(self, key_points = 15, depth_bins = 10, name = "PoseLoss", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
         self.key_points = tf.cast(key_points, dtype = tf.int32)
         self.depth_bins = tf.cast(depth_bins, dtype = tf.float32)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_shape = inputs_shape[0]
@@ -267,7 +256,6 @@ class PoseLoss(tf.keras.layers.Layer):
         super().build(inputs_shape)
 
     # is a @tf.function with defined input shape
-    @tf.Module.with_name_scope
     def call(self, inputs):
         feature, gt_kp = inputs
         features_xy = feature[:,:,:,:self.key_points]
@@ -289,17 +277,15 @@ class PoseLoss(tf.keras.layers.Layer):
         return hard_kp_loss_xy, hard_kp_loss_z#, sym_loss
 
 class PersonPosFromPose(tf.keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "PersonPosFromPose", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)   
         super().build(inputs_shape)
         self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None, 15, 3],dtype=tf.float32))])
     
     # is a @tf.function with defined input shape
-    @tf.Module.with_name_scope
     def call(self, inputs):
         person_poses = inputs
         print("tracing", self.name,person_poses.shape)
@@ -311,16 +297,14 @@ class PersonPosFromPose(tf.keras.layers.Layer):
 person_pos_from_pose = PersonPosFromPose()
 
 class PersonPosToIndexes(tf.keras.layers.Layer): #TODO triggeres retracing
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "PersonPosToIndexes", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
         self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None],dtype=tf.float32),tf.TensorSpec([None, 3],dtype=tf.float32)),tf.TensorSpec([3],dtype=tf.int32),tf.TensorSpec([3],dtype=tf.float32),tf.TensorSpec([3],dtype=tf.float32)])
      
-    @tf.Module.with_name_scope
     def call(self, inputs, max_indexes, min_loc_xyz, loc_delta_xyz):
         batch_index, person_pos = inputs
         print("tracing", self.name, batch_index.shape, person_pos.shape)
@@ -338,16 +322,14 @@ class PersonPosToIndexes(tf.keras.layers.Layer): #TODO triggeres retracing
 person_pos_to_indexes = PersonPosToIndexes()
 
 class PersonPosToHeatMap(tf.keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "PersonPosToHeatMap", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs, feature_shape, min_loc_xyz, loc_delta_xyz):
         batch_index, person_pos = inputs
         max_indexes = feature_shape[1:] - 1
@@ -359,16 +341,14 @@ class PersonPosToHeatMap(tf.keras.layers.Layer):
 person_pos_to_heat_map = PersonPosToHeatMap()
 
 class HeatMapToWeights(tf.keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "HeatMapToWeights", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         super().build(inputs_shape)
         
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs):
         heatmap = inputs
         heatmap_shape = tf.shape(heatmap)
@@ -394,10 +374,9 @@ class HeatMapToWeights(tf.keras.layers.Layer):
 heat_map_to_weights = HeatMapToWeights()
 
 class PersonLoss(tf.keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = "PersonLoss", dtype = tf.float32, **kwargs):
+        super().__init__(name = name, dtype = dtype, **kwargs)
     
-    @tf.Module.with_name_scope
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_shape, (batch_index_shape, pos_shape) = inputs_shape
@@ -411,7 +390,6 @@ class PersonLoss(tf.keras.layers.Layer):
         
         
     # is a @tf.function with defined input shape
-    @tf.Module.with_name_scope
     def call(self, inputs, min_loc_xyz, loc_delta_xyz):
         feature, (batch_index, person_pos) = inputs
         feature_shape = tf.shape(feature)
@@ -431,18 +409,18 @@ def main():
     test_pos_loss()
     
 def test_pos_loss():
-    min_loc_xyz=tf.constant([0,0,50],dtype=np.float32)
-    loc_delta_xyz=tf.constant([150,150,150],dtype=np.float32)
+    min_loc_xyz=tf.constant([0,0,50],dtype=tf.float32)
+    loc_delta_xyz=tf.constant([150,150,150],dtype=tf.float32)
     batches = 4
-    feature = np.zeros([batches,10,10,10],dtype=np.float32)
+    feature = np.zeros([batches,10,10,10],dtype=tf.float32)
     
-    pos_01=tf.constant([5,5,5],dtype=np.float32)
-    pos_02=tf.constant([2,2,8],dtype=np.float32)
-    pos_11=tf.constant([8,1,0],dtype=np.float32)
-    pos_12=tf.constant([3,7,1],dtype=np.float32)
-    pos_21=tf.constant([5,5,0],dtype=np.float32)
-    pos_31=tf.constant([5,5,0],dtype=np.float32)
-    pos_32=tf.constant([7,7,0],dtype=np.float32)
+    pos_01=tf.constant([5,5,5],dtype=tf.float32)
+    pos_02=tf.constant([2,2,8],dtype=tf.float32)
+    pos_11=tf.constant([8,1,0],dtype=tf.float32)
+    pos_12=tf.constant([3,7,1],dtype=tf.float32)
+    pos_21=tf.constant([5,5,0],dtype=tf.float32)
+    pos_31=tf.constant([5,5,0],dtype=tf.float32)
+    pos_32=tf.constant([7,7,0],dtype=tf.float32)
     
     feature[0,5,5,5]=1
     feature[0,2,2,8]=1
@@ -500,7 +478,7 @@ def test_pos_loss():
 def test_pose_loss():
     batches = 4
     keypoints = 15
-    feature = np.zeros([batches,10,10,10+keypoints],dtype=np.float32)
+    feature = np.zeros([batches,10,10,10+keypoints],dtype=tf.float32)
     #x
     feature[0,5,5,0]=0.5
     feature[0,6,6,0]=0.5
@@ -582,7 +560,7 @@ class LossTestTrainingsModel(tf.keras.layers.Layer):
         
     def build(self, inputs_shape):
         feature_shape, gt_shape = inputs_shape
-        self.representation = tf.Variable(tf.ones([1, 10, 10, self.depth_bins+self.keypoints]), trainable=True, dtype = tf.float32)
+        self.representation = tf.Variable(tf.ones([1, 10, 10, self.depth_bins+self.keypoints], dtype = tf.float32), trainable=True, dtype = tf.float32)
         self.loss = PoseLoss(self.keypoints, self.depth_bins)
         self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=None, dtype=tf.float32), tf.TensorSpec(shape=[None,self.keypoints,3], dtype=tf.float32))])
         super().build(inputs_shape)

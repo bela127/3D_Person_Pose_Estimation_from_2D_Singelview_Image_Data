@@ -9,8 +9,8 @@ import ShAReD_Net.model.layer.aggregation as aggregation
 
 class TrainingModel(tf.keras.layers.Layer):
     
-    def __init__(self, max_loc_xy, name = "TrainingModel", **kwargs):  
-        super().__init__(name = name, **kwargs)
+    def __init__(self, max_loc_xy, name = "TrainingModel", dtype = tf.float32, **kwargs):  
+        super().__init__(name = name,dtype=dtype, **kwargs)
         self.max_loc_xy = tf.cast(max_loc_xy,dtype=tf.float32)
         
         self.low_level_gpu = "/device:GPU:2"
@@ -34,7 +34,6 @@ class TrainingModel(tf.keras.layers.Layer):
         
         self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None, None, None, 3], dtype=tf.float32), (tf.TensorSpec([None], dtype=tf.float32), tf.TensorSpec([None, 15, 3], dtype=tf.float32)), tf.TensorSpec([], dtype=tf.float32), tf.TensorSpec([], dtype=tf.float32))])
     
-    @tf.Module.with_name_scope
     def call(self, inputs):
         training=True
         images, (batch_indexes, gt_poses), focal_length, crop_factor = inputs
@@ -92,16 +91,16 @@ def main():
     print("TrainingModel")
     images = tf.constant(100.,shape=[1,384,384,3])
     
-    min_loc_xyz=tf.constant([0,0,50],dtype=np.float32)
-    loc_delta_xyz=tf.constant([150,150,150],dtype=np.float32)
+    min_loc_xyz=tf.constant([0,0,50],dtype=tf.float32)
+    loc_delta_xyz=tf.constant([150,150,150],dtype=tf.float32)
     
-    pos_01=tf.constant([5,5,5],dtype=np.float32)
-    pos_02=tf.constant([2,2,8],dtype=np.float32)
-    pos_11=tf.constant([8,1,0],dtype=np.float32)
-    pos_12=tf.constant([3,7,1],dtype=np.float32)
-    pos_21=tf.constant([5,5,0],dtype=np.float32)
-    pos_31=tf.constant([5,5,0],dtype=np.float32)
-    pos_32=tf.constant([7,7,0],dtype=np.float32)
+    pos_01=tf.constant([5,5,5],dtype=tf.float32)
+    pos_02=tf.constant([2,2,8],dtype=tf.float32)
+    pos_11=tf.constant([8,1,0],dtype=tf.float32)
+    pos_12=tf.constant([3,7,1],dtype=tf.float32)
+    pos_21=tf.constant([5,5,0],dtype=tf.float32)
+    pos_31=tf.constant([5,5,0],dtype=tf.float32)
+    pos_32=tf.constant([7,7,0],dtype=tf.float32)
     
     person_poses = [[min_loc_xyz+loc_delta_xyz*pos_01 for _ in range(15)],
                     [min_loc_xyz+loc_delta_xyz*pos_02 for _ in range(15)],

@@ -29,7 +29,7 @@ class BaseModel(keras.Model):
                        high_level_gpus = None,
                        target_gpu = None,
                        
-                       name = "PoseEstimator", **kwargs):
+                       name = "PoseEstimator", dtype = tf.float32, **kwargs):
           
         self.key_points = tf.cast(key_points, dtype = tf.int32)
         self.z_bins = tf.cast(xyz_bins[2], dtype = tf.int32)
@@ -50,7 +50,7 @@ class BaseModel(keras.Model):
         self.high_level_gpus = high_level_gpus
         self.target_gpu = target_gpu
         
-        super().__init__(name = name, **kwargs)
+        super().__init__(name = name,dtype=dtype, **kwargs)
         
         self.extractor = extractor.MultiScaleFeatureExtractor(stages_count = self.stage_count, dense_blocks_count = self.ext_dbc, dense_filter_count = self.ext_dfc, distance_count = self.dist_count, image_hight0 = self.image_hight0, distance_steps = self.dist_step, min_dist = self.min_dist,low_level_gpu = self.low_level_gpu, high_level_gpus=self.high_level_gpus)
         self.detector = detector.PersonDetector(target_gpu = self.target_gpu)
