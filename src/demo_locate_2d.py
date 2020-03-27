@@ -28,7 +28,7 @@ def main():
     
     def train_loop(epochs):
         observations = np.array([15,5])
-        goals = np.array([6,5], dtype=np.float32)
+        goals = np.array([6,5], dtype=tf.float32)
 
         for epoch in range(epochs):
             # Reset the metrics at the start of the next epoch

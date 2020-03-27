@@ -39,7 +39,7 @@ def main():
     
     def train_loop(epochs):
         observations = np.array([15,5])
-        goals_raw = np.array([[[5,5],[7.5,7.5],[2,7.5],[5,1],[8.25,2]]], dtype=np.float32)+offset
+        goals_raw = np.array([[[5,5],[7.5,7.5],[2,7.5],[5,1],[8.25,2]]], dtype=tf.float32)+offset
 
 
         for epoch in range(epochs):
