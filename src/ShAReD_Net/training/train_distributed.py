@@ -52,7 +52,6 @@ def show_plot(train_model, loss, step):
             plt.show()
 
 def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, step_callbacks = standart_callbacks()):
-    
     if dist_strat is None:
         singel_dev_train.train(steps = steps, get_train_model = get_train_model, dataset = dataset, batch_size = batch_size, learning_rate = learning_rate, step_callbacks = step_callbacks)
         return
@@ -102,7 +101,8 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
                                 
                 gradients = tape.gradient(loss_per_input, trainable_vars)
                 tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
-                capped_gradients, _ = tf.clip_by_global_norm(gradients, 10.)
+                non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+                capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
                 tf.print("capped_gradients",[(var.name,grad) for var,grad in zip(trainable_vars,capped_gradients)])
                 to_optimize = zip(capped_gradients, trainable_vars)
                 optimizer.apply_gradients(to_optimize)

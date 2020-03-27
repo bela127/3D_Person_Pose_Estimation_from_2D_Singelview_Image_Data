@@ -80,7 +80,8 @@ def train(steps, get_train_model, dataset, batch_size = 8, learning_rate = 0.01,
             trainable_vars = train_model.trainable_variables
                         
             gradients = tape.gradient(loss_per_input, trainable_vars)
-            capped_gradients, _ = tf.clip_by_global_norm(gradients, 10.)
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
             to_optimize = zip(capped_gradients, trainable_vars)
             optimizer.apply_gradients(to_optimize)
             return loss
