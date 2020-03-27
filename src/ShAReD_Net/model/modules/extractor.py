@@ -10,7 +10,7 @@ import ShAReD_Net.model.layer.aggregation as aggregation
 
 class MultiScaleFeatureExtractor(keras.layers.Layer):
     
-    def __init__(self, stages_count = 2, dense_blocks_count = 3, dense_filter_count = 16, distance_count = 5, image_hight0 = 480., distance_steps = 100., min_dist = 100., low_level_gpu = None, high_level_gpus = None, name = "MultiScaleFeatureExtractor", **kwargs):
+    def __init__(self, stages_count = 2, dense_blocks_count = 3, dense_filter_count = 16, distance_count = 5, image_hight0 = 480., distance_steps = 100., min_dist = 100., low_level_gpu = None, high_level_gpus = None, name = "MultiScaleFeatureExtractor", dtype = tf.float32, **kwargs):
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count
@@ -22,9 +22,8 @@ class MultiScaleFeatureExtractor(keras.layers.Layer):
         
         self.high_level_gpus = high_level_gpus
         self.low_level_gpu = low_level_gpu
-        super().__init__(name = name, **kwargs)
+        super().__init__(name = name,dtype=dtype, **kwargs)
         
-    @tf.Module.with_name_scope
     def build(self, input_shape):
         print(self.name,input_shape)
         self.low_level_extractor = feature.ScaledFeatures(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0)
@@ -33,7 +32,6 @@ class MultiScaleFeatureExtractor(keras.layers.Layer):
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
-    @tf.Module.with_name_scope
     def call(self, inputs, training=None):
         if self.low_level_gpu:
             print("low_level using", self.low_level_gpu[0])
