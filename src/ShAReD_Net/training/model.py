@@ -9,9 +9,9 @@ import ShAReD_Net.model.layer.aggregation as aggregation
 
 class TrainingModel(tf.keras.layers.Layer):
     
-    def __init__(self, max_loc_xy, name = "TrainingModel", dtype = tf.float32, **kwargs):  
-        super().__init__(name = name,dtype=dtype, **kwargs)
-        self.max_loc_xy = tf.cast(max_loc_xy,dtype=tf.float32)
+    def __init__(self, max_loc_xy, name = "TrainingModel", **kwargs):  
+        super().__init__(name = name, **kwargs)
+        self.max_loc_xy = tf.cast(max_loc_xy,dtype=self.dtype)
         
         self.low_level_gpu = "/device:GPU:2"
         self.high_level_gpus = ["/device:GPU:0","/device:GPU:1"]
@@ -20,31 +20,34 @@ class TrainingModel(tf.keras.layers.Layer):
         self.loss_gpu = "/device:CPU:0"
     
     def build(self, input_shape):
-        super().build(input_shape)
         print(self.name,input_shape)
         images_shape, (batch_indexes_shape, gt_poses_shape), focal_length_shape, crop_factor_shape = input_shape
         
         self.base_model = base.BaseModel(low_level_gpu = self.low_level_gpu,
                                          high_level_gpus = self.high_level_gpus,
-                                         target_gpu = self.target_gpu)
+                                         target_gpu = self.target_gpu,
+                                         dtype=self.dtype,
+                                         )
         
         self.detection_loss = loss_base.person_loss
-        self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins)
-        self.roi_extractor = aggregation.CropROI3D(roi_size=[1,11,11,1])
+        self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins, dtype=self.dtype)
+        self.roi_extractor = aggregation.CropROI3D(roi_size=[1,11,11,1], dtype=self.dtype)
         
-        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None, None, None, 3], dtype=tf.float32), (tf.TensorSpec([None], dtype=tf.float32), tf.TensorSpec([None, 15, 3], dtype=tf.float32)), tf.TensorSpec([], dtype=tf.float32), tf.TensorSpec([], dtype=tf.float32))])
-    
+        self.call = tf.function(self.call,input_signature=[(tf.TensorSpec([None, None, None, 3], dtype=self.dtype), (tf.TensorSpec([None], dtype=self.dtype), tf.TensorSpec([None, 15, 3], dtype=self.dtype)), tf.TensorSpec([], dtype=self.dtype), tf.TensorSpec([], dtype=self.dtype))])
+        super().build(input_shape)
+        
     def call(self, inputs):
         training=True
         images, (batch_indexes, gt_poses), focal_length, crop_factor = inputs
         print("tracing", self.name,images.shape, (batch_indexes.shape, gt_poses.shape), focal_length.shape, crop_factor.shape)
-        
+        print(images.dtype, (batch_indexes.dtype, gt_poses.dtype), focal_length.dtype, crop_factor.dtype)
+
         feature3d = self.base_model.extractor([images, focal_length, crop_factor], training=training)
         detection = self.base_model.detector(feature3d, training = training)
         
         with tf.device(self.loss_gpu):
             images_shape = tf.shape(images)
-            xy_step = self.max_loc_xy / tf.cast(images_shape[1:3],dtype=tf.float32)
+            xy_step = self.max_loc_xy / tf.cast(images_shape[1:3],dtype=self.dtype)
             min_loc_xyz = tf.stack([0,0,self.base_model.min_dist],axis = 0)
             loc_delta_xyz = tf.stack([xy_step[0],xy_step[1],self.base_model.dist_step],axis = 0)
 

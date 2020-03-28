@@ -7,7 +7,9 @@ import matplotlib.pyplot as plt
 
 
 def init_devs():
-    tf.config.experimental.set_lms_enabled(True)
+    tf.keras.mixed_precision.experimental.set_policy('mixed_bfloat16')
+
+    #tf.config.experimental.set_lms_enabled(True)
     
     devs = tf.config.get_visible_devices()
     print(devs)
@@ -47,7 +49,11 @@ def init_devs():
     #tf.debugging.enable_check_numerics()
     #tf.config.experimental_run_functions_eagerly(True)
     
+    #from tensorflow.python import debug as tf_debug
     
+    #sess = tf_debug.LocalCLIDebugWrapperSession(tf.compat.v1.Session())
+    #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
+    #sess.__enter__()
     
     input("start?")
     print()
@@ -110,7 +116,7 @@ def finalize(train_model, loss, step):
 def loss_pre(loss):
     detection_loss, estimator_loss = loss
     loss_xy, loss_z = estimator_loss
-    return tf.reduce_sum(detection_loss)# + tf.reduce_sum(loss_xy) + tf.reduce_sum(loss_z)
+    return tf.reduce_sum(loss_xy) + tf.reduce_sum(loss_z) #tf.reduce_sum(detection_loss) + 
     
 time_start = time.time()
 def input_preprocessing(inputs):

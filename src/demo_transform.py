@@ -26,7 +26,7 @@ v0 = test_image.shape[1] / 2
 d = 50
 fx = 100
 fy = 100
-transforms = np.asarray([d/fx,0,-u0*d/fx+x0,0,d/fy,-v0*d/fy+y0,0,0],dtype=tf.float32)
+transforms = np.asarray([d/fx,0,-u0*d/fx+x0,0,d/fy,-v0*d/fy+y0,0,0],dtype=np.float32)
 
 test_image = tfa.image.transform(
     test_image,

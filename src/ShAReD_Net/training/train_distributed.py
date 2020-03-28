@@ -91,19 +91,20 @@ def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_
             def singel_device_train_step(batch):
                 if input_preprocessing_callback:
                     inputs = input_preprocessing_callback(batch)
-                with tf.GradientTape() as tape:
-                    loss = train_model(batch)
-                    if loss_pre_callback:
-                        loss_per_input = loss_pre_callback(loss)
-                    loss_per_input = loss_per_input / tf.cast(batch_size, dtype=tf.float32)
+                loss = train_model(batch)
                 
+                if loss_pre_callback:
+                    loss_per_input = loss_pre_callback(loss)
+                loss_per_input = loss_per_input / tf.cast(batch_size, dtype=tf.float32)
+            
                 trainable_vars = train_model.trainable_variables
                                 
-                gradients = tape.gradient(loss_per_input, trainable_vars)
+                gradients = optimizer.get_gradients(loss_per_input, trainable_vars)
+                
                 tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
                 non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
                 capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
-                tf.print("capped_gradients",[(var.name,grad) for var,grad in zip(trainable_vars,capped_gradients)])
+
                 to_optimize = zip(capped_gradients, trainable_vars)
                 optimizer.apply_gradients(to_optimize)
                 return loss

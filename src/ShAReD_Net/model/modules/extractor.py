@@ -2,37 +2,39 @@ import time
 
 import numpy as np
 import tensorflow as tf
-keras = tf.keras
 
 import ShAReD_Net.model.modules.base as module_base
 import ShAReD_Net.model.modules.feature as feature
 import ShAReD_Net.model.layer.aggregation as aggregation
 
-class MultiScaleFeatureExtractor(keras.layers.Layer):
+class MultiScaleFeatureExtractor(tf.keras.layers.Layer):
     
-    def __init__(self, stages_count = 2, dense_blocks_count = 3, dense_filter_count = 16, distance_count = 5, image_hight0 = 480., distance_steps = 100., min_dist = 100., low_level_gpu = None, high_level_gpus = None, name = "MultiScaleFeatureExtractor", dtype = tf.float32, **kwargs):
+    def __init__(self, stages_count = 2, dense_blocks_count = 3, dense_filter_count = 16, distance_count = 5, image_hight0 = 480., distance_steps = 100., min_dist = 100., low_level_gpu = None, high_level_gpus = None, name = "MultiScaleFeatureExtractor", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count
         
-        self.distance_count = tf.cast(distance_count, dtype = tf.float32)
-        self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
-        self.distance_steps = tf.cast(distance_steps, dtype = tf.float32)
-        self.min_dist = tf.cast(min_dist, dtype = tf.float32)
+        self.distance_count = tf.cast(distance_count, dtype = self.dtype)
+        self.image_hight0 = tf.cast(image_hight0, dtype = self.dtype)
+        self.distance_steps = tf.cast(distance_steps, dtype = self.dtype)
+        self.min_dist = tf.cast(min_dist, dtype = self.dtype)
         
         self.high_level_gpus = high_level_gpus
         self.low_level_gpu = low_level_gpu
-        super().__init__(name = name,dtype=dtype, **kwargs)
+        
         
     def build(self, input_shape):
         print(self.name,input_shape)
-        self.low_level_extractor = feature.ScaledFeatures(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0)
-        self.high_level_extractor = module_base.MultiscaleShAReD(self.stages_count,self.dense_blocks_count,self.dense_filter_count,gpus = self.high_level_gpus)
-        self.interleave = aggregation.Interleave()
+        self.low_level_extractor = feature.ScaledFeatures(min_dist = self.min_dist, distance_count=self.distance_count, distance_steps=self.distance_steps, image_hight0 = self.image_hight0, dtype=self.dtype)
+        self.high_level_extractor = module_base.MultiscaleShAReD(self.stages_count,self.dense_blocks_count,self.dense_filter_count,gpus = self.high_level_gpus, dtype=self.dtype)
+        self.interleave = aggregation.Interleave(dtype=self.dtype)
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
+        print("tracing", self.name)
+        
         if self.low_level_gpu:
             print("low_level using", self.low_level_gpu[0])
             with tf.device(self.low_level_gpu[0]):

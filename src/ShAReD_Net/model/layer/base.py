@@ -7,8 +7,8 @@ import tensorflow.keras as keras
 import numpy as np
 
 class BnDoConfReluConfRelu(keras.layers.Layer):
-    def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "BnDoConfReluConfRelu", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "BnDoConfReluConfRelu", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.filter_count = filter_count
         self.rate = rate
         self.filter_size = filter_size
@@ -16,8 +16,8 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
     
     def build(self, input_shape):
         print(self.name,input_shape)
-        self.bn = keras.layers.BatchNormalization(input_shape = [None, None, input_shape[-1]],dtype=tf.float32)
-        self.do = keras.layers.GaussianDropout(self.rate,dtype=tf.float32)
+        self.bn = keras.layers.BatchNormalization(input_shape = [None, None, input_shape[-1]],dtype=self.dtype)
+        self.do = keras.layers.GaussianDropout(self.rate,dtype=self.dtype)
         self.conv1 = keras.layers.Convolution2D(self.filter_count,
                                                 self.filter_size,
                                                 padding='SAME',
@@ -25,7 +25,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
                                                 kernel_initializer=tf.initializers.he_normal(),
                                                 bias_initializer=tf.initializers.he_uniform(),
                                                 kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                dtype=tf.float32,
+                                                dtype=self.dtype,
                                                 )
         self.conv2 = keras.layers.Convolution2D(self.filter_count,
                                                 self.filter_size,
@@ -34,7 +34,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
                                                 kernel_initializer=tf.initializers.he_normal(),
                                                 bias_initializer=tf.initializers.he_uniform(),
                                                 kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                dtype=tf.float32,
+                                                dtype=self.dtype,
                                                 )
         super().build(input_shape)
         
@@ -55,8 +55,8 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
         return config
 
 class DenseBlock(keras.layers.Layer):
-    def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "DenseBlock", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "DenseBlock", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.filter_count = filter_count
         self.rate = rate
         self.filter_size = filter_size
@@ -78,8 +78,8 @@ class DenseBlock(keras.layers.Layer):
         return config
         
 class DenseModule(keras.layers.Layer):
-    def __init__(self, blocks_count, filter_count, rate = 0.15, filter_size = [3,3], input_depth = 24, name = "DenseModule", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, blocks_count, filter_count, rate = 0.15, filter_size = [3,3], input_depth = 24, name = "DenseModule", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.blocks_count = blocks_count
         self.filter_count = filter_count
         self.rate = rate
@@ -96,7 +96,7 @@ class DenseModule(keras.layers.Layer):
                                                    kernel_initializer=tf.initializers.he_normal(),
                                                    bias_initializer=tf.initializers.he_uniform(),
                                                    kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                   dtype=tf.float32,
+                                                   dtype=self.dtype,
                                                    )
         self.blocks = [DenseBlock(filter_count = self.filter_count,rate = self.rate, filter_size = self.filter_size) for i in range(self.blocks_count)]
         super().build(input_shape)
@@ -114,8 +114,8 @@ class DenseModule(keras.layers.Layer):
         return config
 
 class ShReD(keras.layers.Layer):
-    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "ShReD", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "ShReD", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.do_rate = do_rate
@@ -133,7 +133,7 @@ class ShReD(keras.layers.Layer):
                                                     kernel_initializer=tf.initializers.he_normal(),
                                                     bias_initializer=tf.initializers.he_uniform(),
                                                     kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                    dtype=tf.float32,
+                                                    dtype=self.dtype,
                                                     )
         super().build(input_shape)
 
@@ -151,8 +151,8 @@ class ShReD(keras.layers.Layer):
         return config
     
 class Attention(keras.layers.Layer):
-    def __init__(self, name = "Attention", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)     
+    def __init__(self, name = "Attention", **kwargs):
+        super().__init__(name = name, **kwargs)     
         
     
     def build(self, input_shape):
@@ -165,7 +165,7 @@ class Attention(keras.layers.Layer):
                                                     kernel_initializer=tf.initializers.glorot_normal(),
                                                     bias_initializer=tf.initializers.glorot_uniform(),
                                                     kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                    dtype=tf.float32,
+                                                    dtype=self.dtype,
                                                     )
         super().build(input_shape)
         
@@ -182,8 +182,8 @@ class Attention(keras.layers.Layer):
         return config
     
 class ResAttention(keras.layers.Layer):
-    def __init__(self, name = "ResAttention", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)     
+    def __init__(self, name = "ResAttention", **kwargs):
+        super().__init__(name = name, **kwargs)     
         
     
     def build(self, input_shape):
@@ -197,7 +197,7 @@ class ResAttention(keras.layers.Layer):
                                                    kernel_initializer=tf.initializers.he_normal(),
                                                    bias_initializer=tf.initializers.he_uniform(),
                                                    kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                   dtype=tf.float32,
+                                                   dtype=self.dtype,
                                                    )
         super().build(input_shape)
         
@@ -214,8 +214,8 @@ class ResAttention(keras.layers.Layer):
         return config
 
 class ShAReD(keras.layers.Layer):
-    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "ShAReD", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "ShAReD", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.do_rate = do_rate
@@ -241,8 +241,8 @@ class ShAReD(keras.layers.Layer):
         return config
     
 class SelfShAReD(keras.layers.Layer):
-    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "SelfShAReD", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "SelfShAReD", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.do_rate = do_rate
@@ -270,10 +270,14 @@ class SelfShAReD(keras.layers.Layer):
         return config
     
 class Scale(keras.layers.Layer):
-    def __init__(self, destination_channel = None, new_shape = None, name = "Scale", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, destination_channel = None, new_shape = None, name = "Scale",**kwargs):
+        super().__init__(name = name, **kwargs)
         self.destination_channel = destination_channel
-        self.new_shape = new_shape
+        if new_shape is None:
+            self.new_shape = None
+        else:
+            print(new_shape)
+            self.new_shape = np.asarray(new_shape,dtype=np.int32)
     
     
     def build(self, input_shape):
@@ -287,7 +291,7 @@ class Scale(keras.layers.Layer):
                                                          kernel_initializer=tf.initializers.he_normal(),
                                                          bias_initializer=tf.initializers.he_uniform(),
                                                          kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                         dtype=tf.float32,
+                                                         dtype=self.dtype,
                                                          )
         self.conv = keras.layers.Convolution2D(input_shape[-1],
                                                kernel_size=3,
@@ -296,7 +300,7 @@ class Scale(keras.layers.Layer):
                                                kernel_initializer=tf.initializers.he_normal(),
                                                bias_initializer=tf.initializers.he_uniform(),
                                                kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                               dtype=tf.float32,
+                                               dtype=self.dtype,
                                                )
         self.pool = keras.layers.MaxPool2D(pool_size=3,strides=1,padding="SAME")
         self.compress_output = keras.layers.Convolution2D(self.destination_channel,
@@ -306,7 +310,7 @@ class Scale(keras.layers.Layer):
                                                           kernel_initializer=tf.initializers.he_normal(),
                                                           bias_initializer=tf.initializers.he_uniform(),
                                                           kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                          dtype=tf.float32,
+                                                          dtype=self.dtype,
                                                           )
         super().build(input_shape)
 
@@ -321,7 +325,6 @@ class Scale(keras.layers.Layer):
             scaled_conv = tf.image.resize(conv, destination_size, preserve_aspect_ratio=True, antialias=True)
             scaled_pool = tf.image.resize(pool, destination_size, preserve_aspect_ratio=True, antialias=True)
         else:
-            self.new_shape = np.asarray(self.new_shape, dtype=np.int32)
             scaled_conv = tf.image.resize(conv, self.new_shape, preserve_aspect_ratio=True, antialias=True)
             scaled_pool = tf.image.resize(pool, self.new_shape, preserve_aspect_ratio=True, antialias=True)
             scaled_conv.set_shape([None,self.new_shape[0],self.new_shape[1],None])
@@ -338,8 +341,8 @@ class Scale(keras.layers.Layer):
         return config
     
 class ScaledShAReD(keras.layers.Layer):
-    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "ScaledShAReD", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, dense_filter_count, dense_blocks_count = 2, do_rate = 0.15, dense_filter_size = [3,3], name = "ScaledShAReD", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.do_rate = do_rate
@@ -373,8 +376,8 @@ class ScaledShAReD(keras.layers.Layer):
         return config
 
 class Merge(keras.layers.Layer):
-    def __init__(self, name = "Merge", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, name = "Merge", **kwargs):
+        super().__init__(name = name, **kwargs)
         
     
     def build(self, input_shape):
@@ -420,8 +423,8 @@ class Merge(keras.layers.Layer):
         RIGHT = 3
     
 class Mix(keras.layers.Layer):
-    def __init__(self, name = "Mix", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype=dtype, **kwargs)
+    def __init__(self, name = "Mix", **kwargs):
+        super().__init__(name = name, **kwargs)
 
     
     def build(self, input_shape):

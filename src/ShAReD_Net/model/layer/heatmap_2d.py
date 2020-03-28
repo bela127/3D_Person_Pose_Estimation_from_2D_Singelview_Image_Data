@@ -3,8 +3,8 @@ import numpy as np
 
 class FeatureToLocationPropabilityMap(tf.keras.layers.Layer):
 
-    def __init__(self, name = "FeatureToLocationPropabilityMap", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
+    def __init__(self, name = "FeatureToLocationPropabilityMap", **kwargs):
+        super().__init__(name=name, **kwargs)
 
     @tf.function
     def call(self, feature):
@@ -22,17 +22,17 @@ feature_to_location_propability_map = FeatureToLocationPropabilityMap()
 
 class LocationMap(tf.keras.layers.Layer):
 
-    def __init__(self, min_loc=[0,0], max_loc=[3000,3000], bins=[10,10], name = "LocationMap", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
-        self.bins = tf.constant(bins, dtype = tf.float32)
-        self.min_loc = tf.constant(min_loc, dtype = tf.float32)
-        self.max_loc = tf.constant(max_loc, dtype = tf.float32)
+    def __init__(self, min_loc=[0,0], max_loc=[3000,3000], bins=[10,10], name = "LocationMap", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.bins = tf.constant(bins, dtype = self.dtype)
+        self.min_loc = tf.constant(min_loc, dtype = self.dtype)
+        self.max_loc = tf.constant(max_loc, dtype = self.dtype)
         self.build(None)
 
     def build(self, input_shape):
         self.loc_delta = (self.max_loc - self.min_loc) / self.bins
         loc_map = np.meshgrid(*[np.arange(_min_loc, _max_loc, _delta) for _min_loc, _max_loc, _delta in  zip(self.min_loc, self.max_loc, self.loc_delta)])
-        loc_map = tf.constant(loc_map, dtype = tf.float32)
+        loc_map = tf.constant(loc_map, dtype = self.dtype)
         self.loc_map = tf.transpose(loc_map, [2,1,0])
         super().build(input_shape)
 
@@ -51,8 +51,8 @@ class LocationMap(tf.keras.layers.Layer):
 
 class PropabilityMapToLocation(tf.keras.layers.Layer):
 
-    def __init__(self, name = "PropabilityMapToLocation", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
+    def __init__(self, name = "PropabilityMapToLocation", **kwargs):
+        super().__init__(name=name, **kwargs)
 
     @tf.function
     def call(self, loc_prop_map, loc_map):
@@ -66,12 +66,12 @@ propability_map_to_location = PropabilityMapToLocation()
     
 class PropabilityMapToIndex(tf.keras.layers.Layer):
 
-    def __init__(self, name = "PropabilityMapToIndex", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
+    def __init__(self, name = "PropabilityMapToIndex", **kwargs):
+        super().__init__(name=name, **kwargs)
         
     def build(self, input_shape):
-        loc_x = tf.range(input_shape[1], dtype=tf.float32)
-        loc_y = tf.range(input_shape[2], dtype=tf.float32)
+        loc_x = tf.range(input_shape[1], dtype=self.dtype)
+        loc_y = tf.range(input_shape[2], dtype=self.dtype)
         loc_x = tf.broadcast_to(tf.expand_dims(loc_x,axis=-1),[input_shape[1],input_shape[2]])
         loc_y = tf.broadcast_to(tf.expand_dims(loc_y,axis=0),[input_shape[1],input_shape[2]])
         self.index_map = tf.stack([loc_x,loc_y],axis=-1)
@@ -80,7 +80,7 @@ class PropabilityMapToIndex(tf.keras.layers.Layer):
     @tf.function
     def call(self, loc_prop_map):
         indexes = tf.reduce_sum(loc_prop_map * self.index_map, axis=[1,2])
-        indexes = tf.minimum(indexes, tf.cast(tf.shape(loc_prop_map)[1:3]-1, dtype=tf.float32))
+        indexes = tf.minimum(indexes, tf.cast(tf.shape(loc_prop_map)[1:3]-1, dtype=self.dtype))
         return tf.cast(indexes +0.5, dtype=tf.int32)
     
     def get_config(self):
@@ -91,8 +91,8 @@ propability_map_to_index = PropabilityMapToIndex()
 
 class VarianceLocatonLoss(tf.keras.layers.Layer):
     
-    def __init__(self, loc_delta, name = "VarianceLocatonLoss", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
+    def __init__(self, loc_delta, name = "VarianceLocatonLoss", **kwargs):
+        super().__init__(name=name, **kwargs)
         self.loc_delta = loc_delta
     
     def build(self, input_shape):
@@ -108,8 +108,8 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
         return shifted_var
 
 class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
-    def __init__(self, loc_delta, name = "VarianceLocationAndPossitionLoss", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
+    def __init__(self, loc_delta, name = "VarianceLocationAndPossitionLoss", **kwargs):
+        super().__init__(name=name, **kwargs)
         self.mse = tf.keras.losses.MeanSquaredError(tf.keras.losses.Reduction.NONE)
         self.vll = VarianceLocatonLoss(loc_delta)
 
@@ -121,11 +121,11 @@ class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
 
 class LocationToIndex(tf.keras.layers.Layer):
     
-    def __init__(self, loc_delta, min_loc, loc_bins, name = "LocationToIndex", dtype = tf.float32, **kwargs):
-        super().__init__(name=name,dtype=dtype,**kwargs)
-        self.loc_delta = tf.cast(loc_delta,dtype=tf.float32)
-        self.max_index = tf.cast(loc_bins,dtype=tf.float32) - 1
-        self.min_loc = tf.cast(min_loc,dtype=tf.float32)
+    def __init__(self, loc_delta, min_loc, loc_bins, name = "LocationToIndex", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.loc_delta = tf.cast(loc_delta,dtype=self.dtype)
+        self.max_index = tf.cast(loc_bins,dtype=self.dtype) - 1
+        self.min_loc = tf.cast(min_loc,dtype=self.dtype)
 
     @tf.function
     def call(self, loc):
@@ -166,7 +166,7 @@ def main():
     indexes = pmti(loc_prop_map)
     print("indexes map:",indexes)
     
-    gt_loc = np.asarray([[1550,1550],[1550,1550],[1500,1500],[1500,1500]],dtype=tf.float32)
+    gt_loc = np.asarray([[1550,1550],[1550,1550],[1500,1500],[1500,1500]],dtype=np.float32)
     
     vll = VarianceLocatonLoss(loc_map_op.loc_delta)
     loss = vll(loc_prop_map, loc_map, gt_loc)

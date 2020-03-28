@@ -8,9 +8,9 @@ import ShAReD_Net.training.loss.base as loss_base
 
     
 class CropROI3D(tf.keras.layers.Layer):
-    def __init__(self, roi_size = [1,9,9,1], name = "CropROI3D",dtype=tf.float32, **kwargs):
+    def __init__(self, roi_size = [1,9,9,1], name = "CropROI3D", **kwargs):
         self.roi_size = np.asarray(roi_size,dtype=np.int32)
-        super().__init__(name = name,dtype=dtype, **kwargs)
+        super().__init__(name = name, **kwargs)
         
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
@@ -31,7 +31,7 @@ class CropROI3D(tf.keras.layers.Layer):
         
         #TODO
         size = tf.shape(roi_indexes)[0]
-        crops_arr = tf.TensorArray(dtype=tf.float32, size=size, dynamic_size=False)
+        crops_arr = tf.TensorArray(dtype=self.dtype, size=size, dynamic_size=False)
         for i in tf.range(size):
             roi = rois[i,...]
             slide = tf.maximum(roi,0)
@@ -48,8 +48,8 @@ class CropROI3D(tf.keras.layers.Layer):
         return crops
 
 class CropROI2D(tf.keras.layers.Layer):
-    def __init__(self, name = "CropROI2D", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype = dtype, **kwargs)
+    def __init__(self, name = "CropROI2D", **kwargs):
+        super().__init__(name = name, **kwargs)
         
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
@@ -68,16 +68,16 @@ class CropROI2D(tf.keras.layers.Layer):
             crop = tf.pad(crop, [[lu_overlap[0],rd_overlap[0]], [lu_overlap[1],rd_overlap[1]], [0,0]])
             return crop
 
-        crops = tf.map_fn(crop_roi, ROIs, dtype=tf.float32)
+        crops = tf.map_fn(crop_roi, ROIs, dtype=self.dtype) #TODO remove map
         return crops
     
 crop_roi_2d = CropROI2D()
 
 class MaskToROI(tf.keras.layers.Layer):
-    def __init__(self, roi_size, threshold = 0.5, name = "MaskToROI", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype = dtype, **kwargs)
+    def __init__(self, roi_size, threshold = 0.5, name = "MaskToROI", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.roi_size = tf.cast(roi_size, dtype=tf.int32)
-        self.threshold = tf.cast(threshold, dtype=tf.float32)
+        self.threshold = tf.cast(threshold, dtype=self.dtype)
     
     
     def build(self, input_shape):
@@ -120,8 +120,8 @@ class MaskToROI(tf.keras.layers.Layer):
         return config
 
 class Interleave(tf.keras.layers.Layer):
-    def __init__(self, name = "Interleave", dtype=tf.float32, **kwargs):
-        super().__init__(name = name, dtype = dtype, **kwargs)
+    def __init__(self, name = "Interleave", **kwargs):
+        super().__init__(name = name, **kwargs)
     
     
     def build(self, inputs_shape):
@@ -135,7 +135,7 @@ class Interleave(tf.keras.layers.Layer):
                                                       kernel_initializer=tf.initializers.he_normal(),
                                                       bias_initializer=tf.initializers.he_uniform(),
                                                       kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                      dtype=tf.float32,
+                                                      dtype=self.dtype,
                                                       )
         self.out_chanel = res_shape[-1] * 2
         super().build(inputs_shape)
@@ -154,8 +154,8 @@ class Interleave(tf.keras.layers.Layer):
         return config
 
 class Combine3D(tf.keras.layers.Layer):
-    def __init__(self, name = "Combine3D", dtype=tf.float32, **kwargs):
-        super().__init__(name = name,dtype =dtype, **kwargs)
+    def __init__(self, name = "Combine3D", **kwargs):
+        super().__init__(name = name, **kwargs)
     
     
     def build(self, inputs_shape):
@@ -180,8 +180,8 @@ class Combine3D(tf.keras.layers.Layer):
 combine3d = Combine3D()  
     
 class Expand3D(tf.keras.layers.Layer):
-    def __init__(self, name = "Expand3D", dtype=tf.float32, **kwargs):
-        super().__init__(name = name,dtype=dtype, **kwargs)
+    def __init__(self, name = "Expand3D", **kwargs):
+        super().__init__(name = name, **kwargs)
     
     
     def build(self, inputs_shape):
@@ -194,7 +194,7 @@ class Expand3D(tf.keras.layers.Layer):
                                         activation=tf.nn.leaky_relu,
                                         kernel_initializer=tf.initializers.he_uniform(),
                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                        dtype=tf.float32,
+                                        dtype=self.dtype,
                                         )
         self.tconf2 = tf.keras.layers.Conv3DTranspose(filters = input_shape[-1]/2,
                                         kernel_size = [3,3,3],
@@ -203,7 +203,7 @@ class Expand3D(tf.keras.layers.Layer):
                                         activation=tf.nn.leaky_relu,
                                         kernel_initializer=tf.initializers.he_uniform(),
                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                        dtype=tf.float32,
+                                        dtype=self.dtype,
                                         )
         self.conf1 = tf.keras.layers.Convolution3D(filters = input_shape[-1]/2,
                                       kernel_size = [1,1,1],
@@ -212,13 +212,17 @@ class Expand3D(tf.keras.layers.Layer):
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
                                       kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                      dtype=tf.float32,
+                                      dtype=self.dtype,
                                       )
         super().build(inputs_shape)
     
     @tf.function
     def call(self, inputs):
         feature = inputs
+        print(feature.shape)
+        print(tf.shape(feature))
+        tf.print(feature.shape)
+        tf.print(tf.shape(feature))
         tconf1 = self.tconf1(feature)
         tconf2 = self.tconf2(tconf1)
         conf1 = self.conf1(tconf2)

@@ -7,8 +7,8 @@ keras = tf.keras
 import ShAReD_Net.model.layer.base as base_layer
 
 class ShAReDHourGlass(keras.layers.Layer):
-    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "ShAReDHourGlass", dtype = tf.float32, **kwargs):
-        super().__init__(name = name,dtype=dtype, **kwargs)
+    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "ShAReDHourGlass", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         
@@ -111,8 +111,8 @@ class ShAReDHourGlass(keras.layers.Layer):
         return config
     
 class MultiscaleShAReDStage(keras.layers.Layer):
-    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "MultiscaleShAReDStage", dtype = tf.float32, **kwargs):
-        super().__init__(name = name,dtype=dtype, **kwargs)
+    def __init__(self, dense_blocks_count = 2, dense_filter_count = 48, name = "MultiscaleShAReDStage", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         
@@ -151,8 +151,8 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         return config
     
 class MultiscaleShAReD(keras.layers.Layer):
-    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, gpus=None, name = "MultiscaleShAReD", dtype = tf.float32, **kwargs):
-        super().__init__(name = name,dtype=dtype, **kwargs)
+    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, gpus=None, name = "MultiscaleShAReD", **kwargs):
+        super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count

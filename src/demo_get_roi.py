@@ -11,7 +11,7 @@ class MaskToROI(tf.keras.layers.Layer):
     def __init__(self, roi_size, threshold = 0.5, name = "MaskToROI", **kwargs):
         super().__init__(name = name, **kwargs)
         self.roi_size = tf.cast(roi_size, dtype=tf.int32)
-        self.threshold = tf.cast(threshold, dtype=tf.float32)
+        self.threshold = tf.cast(threshold, dtype=self.dtype)
         self.roi_half_size = tf.cast(self.roi_size / 2, dtype=tf.int32)
         self.offset = tf.cast(self.roi_size % 2, dtype=tf.int32)
     

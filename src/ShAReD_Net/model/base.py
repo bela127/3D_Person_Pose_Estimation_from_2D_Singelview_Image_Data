@@ -2,14 +2,13 @@ import time
 
 import numpy as np
 import tensorflow as tf
-keras = tf.keras
 
 import ShAReD_Net.model.modules.extractor as extractor
 import ShAReD_Net.model.modules.detector as detector
 import ShAReD_Net.model.modules.estimator as estimator
 import ShAReD_Net.model.layer.aggregation as aggregation
 
-class BaseModel(keras.Model):
+class BaseModel(tf.keras.Model):
     
     def __init__(self, key_points = 15,
                        xyz_bins = [20,20,10],
@@ -29,7 +28,8 @@ class BaseModel(keras.Model):
                        high_level_gpus = None,
                        target_gpu = None,
                        
-                       name = "PoseEstimator", dtype = tf.float32, **kwargs):
+                       name = "PoseEstimator", **kwargs):
+        super().__init__(name = name,**kwargs)
           
         self.key_points = tf.cast(key_points, dtype = tf.int32)
         self.z_bins = tf.cast(xyz_bins[2], dtype = tf.int32)
@@ -41,21 +41,20 @@ class BaseModel(keras.Model):
         self.ext_dfc = ext_dfc
         self.stage_count = stage_count
         
-        self.min_dist = tf.cast(min_dist, dtype = tf.float32)
-        self.dist_count = tf.cast(dist_count, dtype = tf.float32)
-        self.dist_step = tf.cast(dist_step, dtype = tf.float32)
-        self.image_hight0 = tf.cast(image_hight0, dtype = tf.float32)
+        self.min_dist = tf.cast(min_dist, dtype = self.dtype)
+        self.dist_count = tf.cast(dist_count, dtype = self.dtype)
+        self.dist_step = tf.cast(dist_step, dtype = self.dtype)
+        self.image_hight0 = tf.cast(image_hight0, dtype = self.dtype)
         
         self.low_level_gpu = low_level_gpu,
         self.high_level_gpus = high_level_gpus
         self.target_gpu = target_gpu
         
-        super().__init__(name = name,dtype=dtype, **kwargs)
-        
-        self.extractor = extractor.MultiScaleFeatureExtractor(stages_count = self.stage_count, dense_blocks_count = self.ext_dbc, dense_filter_count = self.ext_dfc, distance_count = self.dist_count, image_hight0 = self.image_hight0, distance_steps = self.dist_step, min_dist = self.min_dist,low_level_gpu = self.low_level_gpu, high_level_gpus=self.high_level_gpus)
-        self.detector = detector.PersonDetector(target_gpu = self.target_gpu)
-        self.estimator = estimator.PoseEstimator(key_points = self.key_points, depth_bins = self.z_bins , xy_bins = self.xy_bins, dense_blocks_count = self.est_dbc, dense_filter_count = self.est_dfc, target_gpu = self.target_gpu)
-        self.expand = aggregation.Expand3D()
+            
+        self.extractor = extractor.MultiScaleFeatureExtractor(stages_count = self.stage_count, dense_blocks_count = self.ext_dbc, dense_filter_count = self.ext_dfc, distance_count = self.dist_count, image_hight0 = self.image_hight0, distance_steps = self.dist_step, min_dist = self.min_dist,low_level_gpu = self.low_level_gpu, high_level_gpus=self.high_level_gpus, dtype=self.dtype)
+        self.detector = detector.PersonDetector(target_gpu = self.target_gpu, dtype=self.dtype)
+        self.estimator = estimator.PoseEstimator(key_points = self.key_points, depth_bins = self.z_bins , xy_bins = self.xy_bins, dense_blocks_count = self.est_dbc, dense_filter_count = self.est_dfc, target_gpu = self.target_gpu, dtype=self.dtype)
+        self.expand = aggregation.Expand3D(dtype=self.dtype)
         
     def get_config(self):
         config = super().get_config()
