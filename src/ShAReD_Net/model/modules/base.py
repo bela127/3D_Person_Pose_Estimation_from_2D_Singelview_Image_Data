@@ -15,38 +15,38 @@ class ShAReDHourGlass(keras.layers.Layer):
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
-        self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.big_shared2 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared1")
+        self.big_shared2 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared2")
         
-        self.big_normal = base_layer.Scale()
+        self.big_normal = base_layer.Scale(name="big_normal")
         
-        self.normal_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.normal_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.normal_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared1")
+        self.normal_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared2")
 
-        self.normal_medium = base_layer.Scale()
+        self.normal_medium = base_layer.Scale(name="normal_medium")
         
-        self.medium_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.medium_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.medium_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared1")
+        self.medium_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared2")
 
-        self.medium_small = base_layer.Scale()
+        self.medium_small = base_layer.Scale(name="medium_small")
 
-        self.small_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.small_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.small_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="small_shared1")
+        self.small_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="small_shared2")
 
-        self.small_medium = base_layer.Scale()
+        self.small_medium = base_layer.Scale(name="small_medium")
 
-        self.medium_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.medium_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.medium_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared3")
+        self.medium_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared4")
 
-        self.medium_normal = base_layer.Scale()
+        self.medium_normal = base_layer.Scale(name="medium_normal")
 
-        self.normal_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.normal_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.normal_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared3")
+        self.normal_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared4")
 
-        self.normal_big = base_layer.Scale()
+        self.normal_big = base_layer.Scale(name="normal_big")
 
-        self.big_shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.big_shared4 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.big_shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared3")
+        self.big_shared4 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared4")
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)

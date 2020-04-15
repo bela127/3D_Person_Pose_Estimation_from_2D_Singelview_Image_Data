@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+from addict import Dict
+
 
 import ShAReD_Net.training.train as singel_dev_train
 
@@ -8,10 +10,26 @@ import ShAReD_Net.model.layer.heatmap_1d as heatmap_1d
 import ShAReD_Net.model.layer.heatmap_2d as heatmap_2d
 import ShAReD_Net.training.loss.base as loss_base
 
-
+from ShAReD_Net.configure import config
 
 def standart_callbacks():
-    return {1: print_step, 5: print_loss}
+    callbacks = Dict()
+    callbacks.every_steps[1] = print_step
+    callbacks.every_steps[10] = print_loss
+        #TODO split model in output and loss
+    callbacks.at_step = {}
+
+    callbacks.make_batches = None
+    callbacks.train_init = None
+    
+    callbacks.create_ckpt = None
+    callbacks.create_model = None
+    callbacks.create_loss = None
+    
+    callbacks.input_pre = None
+    callbacks.loss_pre = None
+    callbacks.grad_pre = None
+    return callbacks
 
 def main():
     keypoints = 15
@@ -30,17 +48,17 @@ def main():
     #dist_strat = tf.distribute.OneDeviceStrategy(device="/gpu:0")
     dist_strat = tf.distribute.OneDeviceStrategy(device="/cpu:0")
     step_callbacks = standart_callbacks()
-    step_callbacks[400] = show_plot
+    step_callbacks.step_step[400] = show_plot
     
-    train(400, get_train_model, dataset, dist_strat, batch_size = 16, step_callbacks = step_callbacks)
+    train(400, get_train_model, dataset, dist_strat, batch_size = 16, callbacks = step_callbacks)
 
-def print_step(train_model, loss, step):
+def print_step(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model):
     tf.print("Step:", step)
     
-def print_loss(train_model, loss, step):
+def print_loss(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model):
     tf.print("Loss:", loss)
     
-def show_plot(train_model, loss, step):
+def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model):
     prob_maps = tf.unstack(train_model.representation, axis=-1)
     for prob_map_batch in prob_maps:
         prob_map_batch = heatmap_2d.feature_to_location_propability_map(prob_map_batch)
@@ -51,80 +69,119 @@ def show_plot(train_model, loss, step):
             plt.imshow(prob_map)
             plt.show()
 
-def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, step_callbacks = standart_callbacks()):
+def train(steps, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = standart_callbacks()):
+    writer = tf.summary.create_file_writer(config.tensorboard.path)
+    
     if dist_strat is None:
-        singel_dev_train.train(steps = steps, get_train_model = get_train_model, dataset = dataset, batch_size = batch_size, learning_rate = learning_rate, step_callbacks = step_callbacks)
+        #singel_dev_train.train(steps = steps, get_train_model = get_train_model, dataset = dataset, batch_size = batch_size, learning_rate = learning_rate, step_callbacks = step_callbacks)
+        print("changed interface so None is not supported use a starategie")
         return
-    
-    batch_size = tf.cast(batch_size, dtype=tf.int64)
-    with dist_strat.scope():
-        optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate,epsilon=0.01)
-        train_model = get_train_model()
-    
-    input_preprocessing_callback = step_callbacks.get("input_preprocessing",None)
-    batching_callback = step_callbacks.get("batching",None)
-    init_callback = step_callbacks.get("train_init",None)
-    loss_pre_callback = step_callbacks.get("loss_pre",None)
     
     dataset = dataset.repeat(-1)
     
-    if batching_callback:
+    if callbacks.make_batches:
         def dataset_fn(input_context):
             per_replica_batch_size = input_context.get_per_replica_batch_size(batch_size)
-            d = batching_callback(dataset, per_replica_batch_size)
-            return d.shard(input_context.num_input_pipelines, input_context.input_pipeline_id)
+            d = callbacks.make_batches(dataset, per_replica_batch_size)
+            return d.shard(input_context.num_input_pipelines, input_context.input_pipeline_id).take(steps)
         dist_dataset = dist_strat.experimental_distribute_datasets_from_function(dataset_fn)
     else:
-        dataset = dataset.batch(batch_size)
+        dataset = dataset.batch(batch_size).take(steps)
         dist_dataset = dist_strat.experimental_distribute_dataset(dataset)
     
-    with dist_strat.scope():
-        if init_callback:
-            init_callback(train_model, dist_dataset)
+    step = tf.Variable(0, trainable=False, dtype = tf.int32)
     
-    def train_loop(dist_dataset):
-        step = tf.Variable(0, trainable=False, dtype = tf.int32)
+    with dist_strat.scope():
+        
+        optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate,epsilon=0.01)
+        
+        if callbacks.create_model:
+            train_model = callbacks.create_model()
+        else:
+            print("No train_model, set create_model in the callbacks")
+            return
+        
+        if callbacks.create_loss:
+            train_loss = callbacks.create_loss()
+        else:
+            print("No train_loss, set create_loss in the callbacks")
+            return
+        
+        if callbacks.train_init:
+            callbacks.train_init(train_model, dist_dataset)
+    
+        if callbacks.create_ckpt:
+            ckpt, manager = callbacks.create_ckpt(step, optimizer, train_model)
+            ckpt.restore(manager.latest_checkpoint)
+            if manager.latest_checkpoint:
+                tf.print("Restored from {}".format(manager.latest_checkpoint))
+            else:
+                tf.print("Initializing from scratch.")
+        else:
+            ckpt = manager = None
 
-        @tf.function
-        def train_step(batch):
+    @tf.function(experimental_relax_shapes=True)
+    def singel_device_train_step(batch):
+        
+        if callbacks.input_pre:
+            inputs = callbacks.input_pre(batch)
+        else:
+            inputs = batch
             
-            def singel_device_train_step(batch):
-                if input_preprocessing_callback:
-                    inputs = input_preprocessing_callback(batch)
-                loss = train_model(batch)
-                
-                if loss_pre_callback:
-                    loss_per_input = loss_pre_callback(loss)
-                loss_per_input = loss_per_input / tf.cast(batch_size, dtype=tf.float32)
+        output = train_model(inputs)
+        
+        if callbacks.loss_pre:
+            loss_input = callbacks.loss_pre(output, batch)
+        else:
+            loss_input = output
             
-                trainable_vars = train_model.trainable_variables
-                                
-                gradients = optimizer.get_gradients(loss_per_input, trainable_vars)
-                
-                tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
-                non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
-                capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+        loss = train_loss(loss_input)
+        
+        if callbacks.grad_pre:
+            loss_per_batch, extra_loss = callbacks.grad_pre(loss, train_model.losses, batch)
+        else:
+            loss_per_batch = loss
+            extra_loss = tf.reduce_sum(train_model.losses)
+        
+        loss_per_input = loss_per_batch / tf.cast(batch_size, dtype=loss_per_batch.dtype)
+        
+        agg_loss = loss_per_input + extra_loss
+        
+        trainable_vars = train_model.trainable_variables
+        
+        dev = tf.distribute.get_replica_context().devices
+        print(f"tracing gradients on {dev}")
+        gradients = optimizer.get_gradients(agg_loss, trainable_vars)
+        
+        #tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
+        non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+        capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
 
-                to_optimize = zip(capped_gradients, trainable_vars)
-                optimizer.apply_gradients(to_optimize)
-                return loss
-                
-            
-            per_example_losses = dist_strat.experimental_run_v2(singel_device_train_step, args=(batch,))
-            return per_example_losses
-            
+        to_optimize = zip(capped_gradients, trainable_vars)
+        optimizer.apply_gradients(to_optimize)
+        
+        for callback_step, step_callback in callbacks.every_steps.items():
+            if callback_step > 0 and step % callback_step == 0:
+                step_callback(dev, step, batch, output, loss, train_model.losses, ckpt, manager, train_model)
+        for callback_step, step_callback in callbacks.at_step.items():
+            if step == callback_step:
+                step_callback(dev, step, batch, output, loss, train_model.losses, ckpt, manager, train_model)
+    
+    @tf.function(experimental_relax_shapes=True)
+    def train_step(batch): 
+        dist_strat.experimental_run_v2(singel_device_train_step, args=(batch,))
+    
+    @tf.function
+    def train_loop():  
         with dist_strat.scope():
             for batch in dist_dataset:
                 step.assign_add(1)
-                if steps < 0 or step > steps:
-                    break
-                loss = train_step(batch)
-                if step_callbacks:
-                    for callback_step, step_callback in step_callbacks.items():
-                        if isinstance(callback_step,int) and callback_step > 0 and step % callback_step == 0:
-                            step_callback(train_model, loss, step)
+                tf.summary.experimental.set_step(tf.cast(step,tf.int64))
+                train_step(batch)
+                writer.flush()
         
-    train_loop(dist_dataset)
+    with writer.as_default():
+        train_loop()
 
 if __name__ == "__main__":
     main()

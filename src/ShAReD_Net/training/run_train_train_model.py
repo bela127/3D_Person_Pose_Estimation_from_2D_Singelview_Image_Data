@@ -7,9 +7,12 @@ import matplotlib.pyplot as plt
 
 
 def init_devs():
-    tf.keras.mixed_precision.experimental.set_policy('mixed_bfloat16')
-
+    
     #tf.config.experimental.set_lms_enabled(True)
+    
+    opt = tf.config.optimizer.get_experimental_options()
+    opt["memory_optimization"] = 3
+    tf.config.optimizer.set_experimental_options(opt)
     
     devs = tf.config.get_visible_devices()
     print(devs)
@@ -45,15 +48,12 @@ def init_devs():
     print(tf.version.VERSION)
     dtype = tf.float32
     tf.keras.backend.set_floatx(dtype.name)
+    #tf.keras.mixed_precision.experimental.set_policy('float64') #TODO not working in tensorflow, only 32 bit gradients for some ops, only float 32 support for others
+    tf.keras.mixed_precision.experimental.set_policy(dtype.name)
+    
     
     #tf.debugging.enable_check_numerics()
     #tf.config.experimental_run_functions_eagerly(True)
-    
-    #from tensorflow.python import debug as tf_debug
-    
-    #sess = tf_debug.LocalCLIDebugWrapperSession(tf.compat.v1.Session())
-    #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
-    #sess.__enter__()
     
     input("start?")
     print()

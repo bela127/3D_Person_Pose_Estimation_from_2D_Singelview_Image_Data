@@ -314,7 +314,7 @@ class Scale(keras.layers.Layer):
                                                           )
         super().build(input_shape)
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def call(self, inputs, destination_size = None):
         
         compressed_input = self.compress_input(inputs)
@@ -322,16 +322,17 @@ class Scale(keras.layers.Layer):
         pool = self.pool(inputs)
         
         if self.new_shape is None:
-            scaled_conv = tf.image.resize(conv, destination_size, preserve_aspect_ratio=True, antialias=True)
-            scaled_pool = tf.image.resize(pool, destination_size, preserve_aspect_ratio=True, antialias=True)
+            scaled_conv = tf.image.resize(conv, destination_size, antialias=True)
+            scaled_pool = tf.image.resize(pool, destination_size, antialias=True)
         else:
-            scaled_conv = tf.image.resize(conv, self.new_shape, preserve_aspect_ratio=True, antialias=True)
-            scaled_pool = tf.image.resize(pool, self.new_shape, preserve_aspect_ratio=True, antialias=True)
+            scaled_conv = tf.image.resize(conv, self.new_shape, antialias=True)
+            scaled_pool = tf.image.resize(pool, self.new_shape, antialias=True)
             scaled_conv.set_shape([None,self.new_shape[0],self.new_shape[1],None])
             scaled_pool.set_shape([None,self.new_shape[0],self.new_shape[1],None])
         
-        concat = keras.layers.concatenate([scaled_pool, scaled_conv])
+        concat = tf.concat([scaled_pool, scaled_conv], axis = -1)
         compressed_output = self.compress_output(concat)
+                
         return compressed_output
     
     def get_config(self):
@@ -354,21 +355,25 @@ class ScaledShAReD(keras.layers.Layer):
         res_shape, shc_shape = input_shape
         self.dense_m = DenseModule(blocks_count = self.dense_blocks_count, rate = self.do_rate, filter_size = self.dense_filter_size, filter_count = self.dense_filter_count)
         self.attention = ResAttention()
-        self.scale_up = Scale(destination_channel = res_shape[-1])
-        self.scale_down = Scale()
+        self.scale_up = Scale(destination_channel = res_shape[-1], name="scale_up")
+        self.scale_down = Scale(name="scale_down")
         super().build(input_shape)
         
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
+        
         inputs_shc_shape = tf.shape(inputs_shc)
         inputs_res_shape = tf.shape(inputs_res)
+        
         scaled_res = self.scale_down(inputs_res, inputs_shc_shape[1:3])
         attention = self.attention([scaled_res, inputs_shc])
         concat = keras.layers.concatenate([scaled_res, attention])
         dense_m = self.dense_m(concat, training=training)
+             
         scaled_dense = self.scale_up(dense_m, inputs_res_shape[1:3])
-        add_res = keras.layers.add([inputs_res, scaled_dense])
+        
+        add_res = tf.add(inputs_res, scaled_dense)
         return add_res, dense_m
         
     def get_config(self):

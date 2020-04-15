@@ -57,44 +57,85 @@ def train(steps, get_train_model, dataset, batch_size = 8, learning_rate = 0.01,
     dataset = dataset.repeat(-1)
     
     if batching_callback:
-        dataset = batching_callback(dataset, batch_size)
+        dataset = batching_callback(dataset, batch_size).take(steps)
     else:
-        dataset = dataset.batch(batch_size)
+        dataset = dataset.batch(batch_size).take(steps)
     
+    
+    step = tf.Variable(0, trainable=False, dtype = tf.int32)  
+    
+    @tf.function(experimental_relax_shapes=True)
+    def train_step(batch):
+        if input_preprocessing_callback:
+            inputs = input_preprocessing_callback(batch)
+            
+        loss = train_model(batch)
+        
+        if loss_pre_callback:
+            loss_per_batch = loss_pre_callback(loss)
+            
+        loss_per_input = loss_per_batch / tf.cast(batch_size, dtype=loss_per_batch.dtype)
+        
+        agg_loss = tf.reduce_sum(train_model.losses) + loss_per_input
+    
+        trainable_vars = train_model.trainable_variables
+        
+        split1 = len(trainable_vars) //6
+        split2 = len(trainable_vars) //4
+        dev_vars_0 = trainable_vars[:split1]
+        dev_vars_1 = trainable_vars[split1:split2]
+        dev_vars_2 = trainable_vars[split2:]
+        with tf.device("/gpu:0"):
+            print("tracing gradients on ", "/gpu:0")
+            gradients = optimizer.get_gradients(agg_loss, dev_vars_0)
+            
+            #tf.print("gradients",[(var.name,grad) for var,grad in zip(dev_vars,gradients)])
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+
+            to_optimize = zip(capped_gradients, dev_vars_0)
+            
+            optimizer.apply_gradients(to_optimize)
+            
+        with tf.device("/gpu:1"):
+            print("tracing gradients on ", "/gpu:1")
+            gradients = optimizer.get_gradients(agg_loss, dev_vars_1)
+            
+            #tf.print("gradients",[(var.name,grad) for var,grad in zip(dev_vars_1,gradients)])
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+
+            to_optimize = zip(capped_gradients, dev_vars_1)
+            
+            optimizer.apply_gradients(to_optimize)
+            
+        with tf.device("/gpu:3"):
+            print("tracing gradients on ", "/gpu:3")
+            gradients = optimizer.get_gradients(agg_loss, dev_vars_2)
+            
+            #tf.print("gradients",[(var.name,grad) for var,grad in zip(dev_vars_2,gradients)])
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+
+            to_optimize = zip(capped_gradients, dev_vars_2)
+            
+            optimizer.apply_gradients(to_optimize)
+        return loss
+    
+    @tf.function
     def train_loop(dataset):
-        step = tf.Variable(0, trainable=False, dtype = tf.int32)
         
         if init_callback:
             init_callback(train_model, dataset)
-
-        @tf.function
-        def train_step(batch):
-            if input_preprocessing_callback:
-                inputs = input_preprocessing_callback(batch)
-            with tf.GradientTape() as tape:
-                loss = train_model(batch)
-                if loss_pre_callback:
-                    loss_per_input = loss_pre_callback(loss)
-                loss_per_input = loss_per_input / tf.cast(batch_size, dtype=tf.float32)
-
-            trainable_vars = train_model.trainable_variables
-                        
-            gradients = tape.gradient(loss_per_input, trainable_vars)
-            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
-            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
-            to_optimize = zip(capped_gradients, trainable_vars)
-            optimizer.apply_gradients(to_optimize)
-            return loss
             
         for batch in dataset:
             step.assign_add(1)
-            if steps < 0 or step > steps:
-                break
             loss = train_step(batch)
             if step_callbacks:
                 for callback_step, step_callback in step_callbacks.items():
-                    if isinstance(callback_step,int) and callback_step > 0 and step % callback_step == 0:
-                        step_callback(train_model, loss, step)
+                    if isinstance(callback_step,int) and step_callback:
+                        if callback_step > 0 and step % callback_step == 0:
+                            step_callback(train_model, loss, step)
         
     train_loop(dataset)
 

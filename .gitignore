@@ -82,6 +82,8 @@ ipython_config.py
 *.trace.json.gz
 events.out.tfevents.*
 *.profile-empty
+checkpoints/
+logdir/
 
 # pyenv
 .python-version

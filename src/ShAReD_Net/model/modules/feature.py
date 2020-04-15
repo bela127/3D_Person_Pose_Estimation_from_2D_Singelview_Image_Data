@@ -24,7 +24,14 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                  kernel_regularizer=tf.keras.regularizers.l2(0.001),
                                                  dtype = self.dtype,
                                                  )
-        self.textures = tf.keras.layers.DepthwiseConv2D(kernel_size = 3,depth_multiplier = self.texture_channel, name="textures", padding='SAME', activation=tf.nn.leaky_relu, depthwise_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform(), dtype = self.dtype)
+        self.textures = tf.keras.layers.DepthwiseConv2D(kernel_size = 3,
+                                                        depth_multiplier = self.texture_channel,
+                                                        name="textures",
+                                                        padding='SAME',
+                                                        activation=tf.nn.leaky_relu,
+                                                        depthwise_initializer=tf.initializers.he_normal(),
+                                                        bias_initializer=tf.initializers.he_uniform(),
+                                                        dtype = self.dtype)
         self.compositions11 = tf.keras.layers.Convolution2D(self.texture_compositions,
                                                          [1,9],
                                                          name="comp11",
@@ -90,7 +97,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs):
-        standardized = inputs #= tf.image.per_image_standardization(inputs)
+        standardized = tf.image.per_image_standardization(inputs)
         colors = self.colors(standardized)
         colors = tf.keras.layers.concatenate([standardized, colors])
         textures = self.textures(colors)

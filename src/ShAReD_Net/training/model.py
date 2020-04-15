@@ -11,11 +11,17 @@ class TrainingModel(tf.keras.layers.Layer):
     
     def __init__(self, max_loc_xy, name = "TrainingModel", **kwargs):  
         super().__init__(name = name, **kwargs)
-        self.max_loc_xy = tf.cast(max_loc_xy,dtype=self.dtype)
+        self.max_loc_xy = tf.cast(max_loc_xy, dtype=self.dtype)
         
         self.low_level_gpu = "/device:GPU:2"
         self.high_level_gpus = ["/device:GPU:0","/device:GPU:1"]
         self.target_gpu = "/device:GPU:2"
+        
+        self.loss_gpu = "/device:CPU:0"
+        
+        self.low_level_gpu = "/device:CPU:0"
+        self.high_level_gpus = ["/device:CPU:0","/device:CPU:0"]
+        self.target_gpu = "/device:CPU:0"
         
         self.loss_gpu = "/device:CPU:0"
     
@@ -26,10 +32,9 @@ class TrainingModel(tf.keras.layers.Layer):
         self.base_model = base.BaseModel(low_level_gpu = self.low_level_gpu,
                                          high_level_gpus = self.high_level_gpus,
                                          target_gpu = self.target_gpu,
-                                         dtype=self.dtype,
                                          )
         
-        self.detection_loss = loss_base.person_loss
+        self.detection_loss = loss_base.PersonLoss(dtype=self.dtype)
         self.estimator_loss = loss_base.PoseLoss(key_points = self.base_model.key_points, depth_bins = self.base_model.z_bins, dtype=self.dtype)
         self.roi_extractor = aggregation.CropROI3D(roi_size=[1,11,11,1], dtype=self.dtype)
         
@@ -40,7 +45,7 @@ class TrainingModel(tf.keras.layers.Layer):
         training=True
         images, (batch_indexes, gt_poses), focal_length, crop_factor = inputs
         print("tracing", self.name,images.shape, (batch_indexes.shape, gt_poses.shape), focal_length.shape, crop_factor.shape)
-        print(images.dtype, (batch_indexes.dtype, gt_poses.dtype), focal_length.dtype, crop_factor.dtype)
+        print(self.dtype, images.dtype, (batch_indexes.dtype, gt_poses.dtype), focal_length.dtype, crop_factor.dtype)
 
         feature3d = self.base_model.extractor([images, focal_length, crop_factor], training=training)
         detection = self.base_model.detector(feature3d, training = training)

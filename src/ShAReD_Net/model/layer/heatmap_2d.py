@@ -24,17 +24,18 @@ class LocationMap(tf.keras.layers.Layer):
 
     def __init__(self, min_loc=[0,0], max_loc=[3000,3000], bins=[10,10], name = "LocationMap", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.bins = tf.constant(bins, dtype = self.dtype)
-        self.min_loc = tf.constant(min_loc, dtype = self.dtype)
-        self.max_loc = tf.constant(max_loc, dtype = self.dtype)
+        self.bins = tf.cast(bins, dtype = self.dtype)
+        self.min_loc = tf.cast(min_loc, dtype = self.dtype)
+        self.max_loc = tf.cast(max_loc, dtype = self.dtype)
         self.build(None)
 
-    def build(self, input_shape):
+    def build(self, inputs_shape):
+        print(self.name, inputs_shape)
         self.loc_delta = (self.max_loc - self.min_loc) / self.bins
-        loc_map = np.meshgrid(*[np.arange(_min_loc, _max_loc, _delta) for _min_loc, _max_loc, _delta in  zip(self.min_loc, self.max_loc, self.loc_delta)])
+        loc_map = np.meshgrid(*[np.arange(_min_loc, _max_loc, _delta) for _min_loc, _max_loc, _delta in zip(self.min_loc, self.max_loc, self.loc_delta)])
         loc_map = tf.constant(loc_map, dtype = self.dtype)
         self.loc_map = tf.transpose(loc_map, [2,1,0])
-        super().build(input_shape)
+        super().build(inputs_shape)
 
     @tf.function
     def call(self, inputs):

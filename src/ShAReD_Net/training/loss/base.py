@@ -129,10 +129,12 @@ class KeypointBatchToPoseGT(tf.keras.layers.Layer):
 
 class PoseLossDepth(tf.keras.layers.Layer):
     
-    def __init__(self, depth_bins, name = "PoseLossDepth", **kwargs):
+    def __init__(self, depth_bins, min_loc=-150, max_loc=150, name = "PoseLossDepth", **kwargs):
         super().__init__(name = name, **kwargs)
         self.depth_bins = tf.cast(depth_bins, tf.int32)
-        self.loc_map_z = heatmap_1d.LocationMap(bins = self.depth_bins, min_loc=-150,max_loc=150)
+        if min_loc >= max_loc:
+            raise ValueError("min_loc must be less then max_loc")
+        self.loc_map_z = heatmap_1d.LocationMap(bins = self.depth_bins, min_loc=min_loc, max_loc=max_loc)
         
         
     def build(self, inputs_shape):
@@ -148,12 +150,11 @@ class PoseLossDepth(tf.keras.layers.Layer):
     # is a @tf.function with defined input shape
     def call(self, inputs):
         features_z, gt_loc_z, gt_index_z = inputs
-
                         
         features_z = heatmap_1d.feature_to_location_propability_map(features_z)
         loc_map_z = self.loc_map_z(0.)
         mask = heatmap_1d.mask_from_index(gt_index_z, tf.shape(features_z)[0:3])
-        prop_map_z = heatmap_1d.mask_propability_map(features_z, mask)
+        prop_map_z = heatmap_1d.mask_propability_map((features_z, mask))
         gt_loc_exp_z = heatmap_1d.expand_gt(gt_index_z, gt_loc_z, tf.shape(prop_map_z)[0:3])
         loc_z = heatmap_1d.propability_map_to_location(prop_map_z, loc_map_z)
         loss_z = self.loss_z(prop_map_z, loc_z, loc_map_z, gt_loc_exp_z)
@@ -178,9 +179,9 @@ class PoseLossDepth(tf.keras.layers.Layer):
     
 class PoseLoss2D(tf.keras.layers.Layer):
     
-    def __init__(self, xy_bins, name = "PoseLoss2D", **kwargs):
+    def __init__(self, xy_bins, min_loc=[-150,-150], max_loc=[150, 150], name = "PoseLoss2D", **kwargs):
         super().__init__(name = name, **kwargs)
-        self.loc_map_xy = heatmap_2d.LocationMap(bins=xy_bins, min_loc=[-150,-150],max_loc=[150, 150], dtype=self.dtype)
+        self.loc_map_xy = heatmap_2d.LocationMap(bins=xy_bins, min_loc=min_loc,max_loc=max_loc, dtype=self.dtype)
         
     
     def build(self, inputs_shape):
@@ -230,17 +231,19 @@ class PoseLoss2D(tf.keras.layers.Layer):
 
 class PoseLoss(tf.keras.layers.Layer):
     
-    def __init__(self, key_points = 15, depth_bins = 10, name = "PoseLoss", **kwargs):
+    def __init__(self, key_points = 15, depth_bins = 10, xyz_min=[-150,-150,-150], xyz_max=[150,150,150], name = "PoseLoss", **kwargs):
         super().__init__(name = name, **kwargs)
         self.key_points = tf.cast(key_points, dtype = tf.int32)
         self.depth_bins = tf.cast(depth_bins, dtype = self.dtype)
+        self.xyz_min = tf.cast(xyz_min, dtype = tf.int32)
+        self.xyz_max = tf.cast(xyz_max, dtype = tf.int32)
+        
     
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_shape = inputs_shape[0]
-        print(feature_shape)
-        self.pose_loss_xy = PoseLoss2D(feature_shape[1:3])
-        self.pose_loss_z = PoseLossDepth(self.depth_bins) #TODO key_points noetig?
+        self.pose_loss_xy = PoseLoss2D(feature_shape[1:3], min_loc = self.xyz_min[:-1], max_loc = self.xyz_max[:-1])
+        self.pose_loss_z = PoseLossDepth(self.depth_bins, min_loc = self.xyz_min[-1], max_loc = self.xyz_max[-1])
         
         self.xy_loc_delta = self.pose_loss_xy.loc_map_xy.loc_delta
         self.xy_min_loc = self.pose_loss_xy.loc_map_xy.min_loc
@@ -271,12 +274,11 @@ class PoseLoss(tf.keras.layers.Layer):
                 
         loc_xyz = tf.concat([loc_xy,loc_z],axis=-1)
         
-        limbs = limb_length(loc_xyz)
-        sym_loss = symmetry_loss(limbs)
+        #TODO transform to real space before sym loss
+        #limbs = limb_length(loc_xyz)
+        #sym_loss = symmetry_loss(limbs)
         
-        tf.print("loss", hard_kp_loss_xy, hard_kp_loss_z)
-                     
-        return hard_kp_loss_xy, hard_kp_loss_z#, sym_loss
+        return hard_kp_loss_xy, hard_kp_loss_z
 
 class PersonPosFromPose(tf.keras.layers.Layer):
     def __init__(self, name = "PersonPosFromPose", **kwargs):
@@ -334,13 +336,14 @@ class PersonPosToHeatMap(tf.keras.layers.Layer):
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, feature_shape, min_loc_xyz, loc_delta_xyz):
         batch_index, person_pos = inputs
+        print("tracing", self.name ,batch_index.shape, person_pos.shape)
+        print(self.dtype, batch_index.dtype, person_pos.dtype)
+        
         max_indexes = feature_shape[1:] - 1
         indices = person_pos_to_indexes([batch_index, person_pos],max_indexes, min_loc_xyz, loc_delta_xyz)
-        heat_map = tf.SparseTensor(indices = indices, values = tf.ones(tf.shape(indices)[0]), dense_shape = tf.cast(feature_shape, dtype =tf.int64))
+        heat_map = tf.SparseTensor(indices = indices, values = tf.ones(tf.shape(indices)[0], dtype=self.dtype), dense_shape = tf.cast(feature_shape, dtype =tf.int64))
         heat_map = tf.sparse.to_dense(heat_map, validate_indices=False)
         return heat_map
-
-person_pos_to_heat_map = PersonPosToHeatMap()
 
 class HeatMapToWeights(tf.keras.layers.Layer):
     def __init__(self, name = "HeatMapToWeights", **kwargs):
@@ -354,10 +357,14 @@ class HeatMapToWeights(tf.keras.layers.Layer):
     def call(self, inputs):
         heatmap = inputs
         heatmap_shape = tf.shape(heatmap)
-        ones = tf.ones(heatmap_shape)
+        ones = tf.ones(heatmap_shape, dtype=self.dtype)
         
         heatmap_3d = tf.expand_dims(heatmap,axis=-1)
-        dilated_heatmap_3d = tf.nn.max_pool3d(heatmap_3d, ksize=3, strides=1, padding="SAME", name='dilation')
+        
+        heatmap_3d_cast = tf.cast(heatmap_3d, dtype=tf.float32) #FIX Tf Maxpool does not support Float64
+        dilated_heatmap_3d_cast = tf.nn.max_pool3d(heatmap_3d_cast, ksize=3, strides=1, padding="SAME", name='dilation')
+        dilated_heatmap_3d = tf.cast(dilated_heatmap_3d_cast, dtype=self.dtype)
+        
         dilated_heatmap = dilated_heatmap_3d[...,0]
         
         nr_persons = tf.reduce_sum(heatmap, axis=[1,2,3])
@@ -373,8 +380,6 @@ class HeatMapToWeights(tf.keras.layers.Layer):
         weights = negative_weights + positive_weights
         return weights
 
-heat_map_to_weights = HeatMapToWeights()
-
 class PersonLoss(tf.keras.layers.Layer):
     def __init__(self, name = "PersonLoss", **kwargs):
         super().__init__(name = name, **kwargs)
@@ -382,12 +387,16 @@ class PersonLoss(tf.keras.layers.Layer):
     def build(self, inputs_shape):
         print(self.name,inputs_shape)
         feature_shape, (batch_index_shape, pos_shape) = inputs_shape
+        
+        self.heat_map_to_weights = HeatMapToWeights(dtype=self.dtype)
+        self.person_pos_to_heat_map = PersonPosToHeatMap(dtype=self.dtype)
+
+        
         self.call = tf.function(self.call,input_signature=[(tf.TensorSpec(shape=[None,feature_shape[1],feature_shape[2],feature_shape[3]], dtype=self.dtype),
                                                             (tf.TensorSpec(shape=[None], dtype=self.dtype),
                                                              tf.TensorSpec(shape=[None,pos_shape[1]], dtype=self.dtype))),
                                                            tf.TensorSpec(shape=[3], dtype=self.dtype),
                                                            tf.TensorSpec(shape=[3], dtype=self.dtype)])
-        
         super().build(inputs_shape)
         
         
@@ -395,15 +404,13 @@ class PersonLoss(tf.keras.layers.Layer):
     def call(self, inputs, min_loc_xyz, loc_delta_xyz):
         feature, (batch_index, person_pos) = inputs
         feature_shape = tf.shape(feature)
-        heat_map = person_pos_to_heat_map((batch_index, person_pos), feature_shape, min_loc_xyz, loc_delta_xyz)
-        loss_weights = heat_map_to_weights(heat_map)
+        heat_map = self.person_pos_to_heat_map((batch_index, person_pos), feature_shape, min_loc_xyz, loc_delta_xyz)
+        loss_weights = self.heat_map_to_weights(heat_map)
         se = (feature - heat_map)**2
         weighted_loss = se * loss_weights
         nr_persons = tf.reduce_sum(heat_map, axis=[1,2,3])
         loss = tf.reduce_sum(weighted_loss, axis=[1,2,3]) / nr_persons
         return loss
-
-person_loss = PersonLoss()
 
 def main():
     #tf.config.experimental_run_functions_eagerly(True)
@@ -414,7 +421,7 @@ def test_pos_loss():
     min_loc_xyz=tf.constant([0,0,50],dtype=tf.float32)
     loc_delta_xyz=tf.constant([150,150,150],dtype=tf.float32)
     batches = 4
-    feature = np.zeros([batches,10,10,10],dtype=tf.float32)
+    feature = np.zeros([batches,10,10,10],dtype=np.float32)
     
     pos_01=tf.constant([5,5,5],dtype=tf.float32)
     pos_02=tf.constant([2,2,8],dtype=tf.float32)

@@ -111,7 +111,8 @@ class MaskPropabilityMap(tf.keras.layers.Layer):
         super().__init__(name=name, **kwargs)
 
     @tf.function
-    def call(self, loc_prop_map, mask):
+    def call(self, inputs):
+        loc_prop_map, mask = inputs
         loc_prop_map = loc_prop_map * mask
         return loc_prop_map
 
@@ -136,7 +137,7 @@ expand_gt = ExpandGt()
 def main():
     bins = 30
     bin_half = int(bins/2)
-    loc_prop_map = np.zeros([2,5,5,bins],dtype=tf.float32)
+    loc_prop_map = np.zeros([2,5,5,bins],dtype=np.float32)
     loc_prop_map[0,1,1,bin_half]=0.5
     loc_prop_map[0,1,1,bin_half+1]=0.5
     loc_prop_map[0,2,2,bin_half-1]=0.5
@@ -156,8 +157,8 @@ def main():
     gt_loc = np.asarray([1550,1550,1500,1500],dtype=np.float32)
     mask = mask_from_index(gt_index, loc_prop_map.shape[0:3])
 
-    loc_prop_map = mask_propability_map(loc_prop_map, mask)
-    loc_prop_map_test = mask_propability_map(loc_prop_map_test, mask)
+    loc_prop_map = mask_propability_map((loc_prop_map, mask))
+    loc_prop_map_test = mask_propability_map((loc_prop_map_test, mask))
     print(tf.reduce_sum(loc_prop_map_test,axis=[-1]))
 
     gt_loc = expand_gt(gt_index, gt_loc, tf.shape(loc_prop_map)[0:3])
