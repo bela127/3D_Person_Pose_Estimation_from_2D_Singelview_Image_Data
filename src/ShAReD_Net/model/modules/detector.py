@@ -7,6 +7,8 @@ keras = tf.keras
 import ShAReD_Net.model.activation.base as activation_base
 import ShAReD_Net.model.layer.aggregation as aggregation
 
+from ShAReD_Net.configure import config
+
 class PersonDetector(keras.layers.Layer):
     
     def __init__(self,target_gpu = None, name = "PersonDetector", **kwargs):
@@ -22,7 +24,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf3 = tf.keras.layers.Convolution3D(filters = input_shape[-1]/4,
@@ -31,7 +33,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf_d_1 = tf.keras.layers.Convolution3D(filters = 8,
@@ -40,7 +42,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf_w_1 = tf.keras.layers.Convolution3D(filters = 8,
@@ -49,7 +51,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf_h_1 = tf.keras.layers.Convolution3D(filters = 8,
@@ -58,7 +60,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf_d_2 = tf.keras.layers.Convolution3D(filters = 8,
@@ -67,7 +69,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf_w_2 = tf.keras.layers.Convolution3D(filters = 8,
@@ -76,7 +78,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf_h_2 = tf.keras.layers.Convolution3D(filters = 8,
@@ -85,7 +87,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         self.conf4 = tf.keras.layers.Convolution3D(filters = 1,
@@ -94,7 +96,7 @@ class PersonDetector(keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
 

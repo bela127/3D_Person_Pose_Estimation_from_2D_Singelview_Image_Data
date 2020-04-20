@@ -22,6 +22,7 @@ def standart_callbacks():
     callbacks.make_batches = None
     callbacks.train_init = None
     
+    callbacks.create_dataset = None
     callbacks.create_ckpt = None
     callbacks.create_model = None
     callbacks.create_loss = None
@@ -68,13 +69,20 @@ def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_m
         for prob_map in prob_map_batch:
             plt.imshow(prob_map)
             plt.show()
-
-def train(steps, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = standart_callbacks()):
+            
+def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = standart_callbacks()):
     writer = tf.summary.create_file_writer(config.tensorboard.path)
     
     if dist_strat is None:
         #singel_dev_train.train(steps = steps, get_train_model = get_train_model, dataset = dataset, batch_size = batch_size, learning_rate = learning_rate, step_callbacks = step_callbacks)
         print("changed interface so None is not supported use a starategie")
+        return
+    
+    if callbacks.create_dataset:
+        per_replica_batch_size = batch_size // dist_strat.num_replicas_in_sync
+        dataset = callbacks.create_dataset(per_replica_batch_size)
+    else:
+        print("No dataset, set create_dataset in the callbacks")
         return
     
     dataset = dataset.repeat(-1)
@@ -93,7 +101,7 @@ def train(steps, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, call
     
     with dist_strat.scope():
         
-        optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate,epsilon=0.01)
+        optimizer1 = tf.keras.optimizers.Nadam(learning_rate = config.training.learning_rate.detect, epsilon=0.001)
         
         if callbacks.create_model:
             train_model = callbacks.create_model()
@@ -111,7 +119,7 @@ def train(steps, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, call
             callbacks.train_init(train_model, dist_dataset)
     
         if callbacks.create_ckpt:
-            ckpt, manager = callbacks.create_ckpt(step, optimizer, train_model)
+            ckpt, manager = callbacks.create_ckpt(step, optimizer1, train_model, train_loss)
             ckpt.restore(manager.latest_checkpoint)
             if manager.latest_checkpoint:
                 tf.print("Restored from {}".format(manager.latest_checkpoint))
@@ -137,35 +145,39 @@ def train(steps, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, call
             
         loss = train_loss(loss_input)
         
+        extra_loss_list = train_model.losses# + train_loss.losses
         if callbacks.grad_pre:
-            loss_per_batch, extra_loss = callbacks.grad_pre(loss, train_model.losses, batch)
+            loss_per_batch, extra_loss, trainable_vars = callbacks.grad_pre(loss, extra_loss_list, batch, optimizer1, train_model, train_loss)
         else:
             loss_per_batch = loss
-            extra_loss = tf.reduce_sum(train_model.losses)
+            extra_loss = tf.reduce_sum(extra_loss_list)
+            trainable_vars = train_model.low_level_extractor.trainable_variables + train_model.encoder.trainable_variables + train_model.pos_decoder.trainable_variables + train_model.pose_decoder.trainable_variables+ train_loss.trainable_variables
         
-        loss_per_input = loss_per_batch / tf.cast(batch_size, dtype=loss_per_batch.dtype)
+        loss_per_input1 = loss_per_batch / tf.cast(batch_size, dtype=loss_per_batch.dtype)
         
-        agg_loss = loss_per_input + extra_loss
-        
-        trainable_vars = train_model.trainable_variables
-        
+        agg_loss1 = loss_per_input1 + extra_loss
+
         dev = tf.distribute.get_replica_context().devices
         print(f"tracing gradients on {dev}")
-        gradients = optimizer.get_gradients(agg_loss, trainable_vars)
-        
-        #tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
-        non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
-        capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+        gradients1 = optimizer1.get_gradients(agg_loss1, trainable_vars)
 
-        to_optimize = zip(capped_gradients, trainable_vars)
-        optimizer.apply_gradients(to_optimize)
+        #tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
+        non_nan_gradients1 = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients1]
+        capped_gradients1, norm = tf.clip_by_global_norm(non_nan_gradients1, 10.)
+        tf.print("current gradient norm", norm)
+        tf.print("current gradient max", tf.reduce_max(non_nan_gradients1))
+        tf.print("current gradient mean", tf.reduce_mean(non_nan_gradients1))
+        
+        to_optimize1 = zip(capped_gradients1, trainable_vars)
+        
+        optimizer1.apply_gradients(to_optimize1)
         
         for callback_step, step_callback in callbacks.every_steps.items():
             if callback_step > 0 and step % callback_step == 0:
-                step_callback(dev, step, batch, output, loss, train_model.losses, ckpt, manager, train_model)
+                step_callback(dev, step, batch, output, loss, extra_loss_list, ckpt, manager, train_model)
         for callback_step, step_callback in callbacks.at_step.items():
             if step == callback_step:
-                step_callback(dev, step, batch, output, loss, train_model.losses, ckpt, manager, train_model)
+                step_callback(dev, step, batch, output, loss, extra_loss_list, ckpt, manager, train_model)
     
     @tf.function(experimental_relax_shapes=True)
     def train_step(batch): 

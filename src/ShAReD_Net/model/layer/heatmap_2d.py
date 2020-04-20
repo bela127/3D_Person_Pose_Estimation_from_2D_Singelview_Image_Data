@@ -10,7 +10,6 @@ class FeatureToLocationPropabilityMap(tf.keras.layers.Layer):
     def call(self, feature):
         shape = tf.shape(feature)
         flat = tf.reshape(feature,[shape[0], -1])
-        flat = tf.nn.tanh(flat) #fixing instability with relu and softmax giving nan: https://github.com/keras-team/keras/issues/1244#issuecomment-164170261
         flat = tf.nn.softmax(flat)
         return tf.reshape(flat, shape)
     
@@ -34,7 +33,7 @@ class LocationMap(tf.keras.layers.Layer):
         self.loc_delta = (self.max_loc - self.min_loc) / self.bins
         loc_map = np.meshgrid(*[np.arange(_min_loc, _max_loc, _delta) for _min_loc, _max_loc, _delta in zip(self.min_loc, self.max_loc, self.loc_delta)])
         loc_map = tf.constant(loc_map, dtype = self.dtype)
-        self.loc_map = tf.transpose(loc_map, [2,1,0])
+        self.loc_map = tf.transpose(loc_map, [1,2,0])
         super().build(inputs_shape)
 
     @tf.function
@@ -105,7 +104,9 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
         gt_loc_shape = tf.shape(gt_loc)
         gt_loc = tf.reshape(gt_loc,[gt_loc_shape[0],1,1,gt_loc_shape[-1]])
         variance = tf.reduce_sum(loc_prop_map * (loc_map - gt_loc)**2, axis=[1,2])
-        shifted_var = tf.reduce_mean((tf.math.maximum(variance,self.variance_offset) - self.variance_offset), axis=1)
+        maxed_var = tf.math.maximum(variance,self.variance_offset)
+        max_loss = (maxed_var-variance)**2
+        shifted_var = tf.reduce_mean(maxed_var - self.variance_offset + max_loss, axis=1)
         return shifted_var
 
 class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
@@ -118,7 +119,7 @@ class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
     def call(self, loc_prop_map, loc, loc_map, gt_loc):
         mse = self.mse(loc, gt_loc)
         vll = self.vll(loc_prop_map, loc_map, gt_loc)
-        return (mse, vll)
+        return mse, vll
 
 class LocationToIndex(tf.keras.layers.Layer):
     
@@ -133,13 +134,13 @@ class LocationToIndex(tf.keras.layers.Layer):
         indexes = (loc - self.min_loc) / self.loc_delta
         indexes = tf.maximum(indexes, 0)
         indexes = tf.minimum(indexes, self.max_index)
-        return tf.cast(indexes +0.5, dtype=tf.int32)
+        return tf.cast(indexes +0.5, dtype=tf.int32)[:,::-1]
 
 def main():
     bins = [30,15]
     bin0_half = int(bins[0]/2)
     bin1_half = int(bins[1]/2)
-    loc_prop_map = np.zeros([4,bins[0],bins[1],1],dtype=tf.float32)
+    loc_prop_map = np.zeros([4,bins[0],bins[1],1],dtype=np.float32)
     loc_prop_map[0,bin0_half,bin1_half,0]=0.5
     loc_prop_map[0,bin0_half+1,bin1_half+1,0]=0.5
     loc_prop_map[1,bin0_half-1,bin1_half-1,0]=0.5

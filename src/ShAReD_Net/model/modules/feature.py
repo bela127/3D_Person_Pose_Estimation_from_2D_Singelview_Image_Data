@@ -3,6 +3,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from ShAReD_Net.configure import config
 
 class LowLevelExtractor(tf.keras.layers.Layer):
     def __init__(self, color_channel = 13, texture_channel = 16, texture_compositions = 16, out_channel = 32, name = "Extractor", **kwargs):
@@ -21,7 +22,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                  activation=tf.nn.leaky_relu,
                                                  kernel_initializer=tf.initializers.he_normal(),
                                                  bias_initializer=tf.initializers.he_uniform(),
-                                                 kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                 kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                  dtype = self.dtype,
                                                  )
         self.textures = tf.keras.layers.DepthwiseConv2D(kernel_size = 3,
@@ -39,7 +40,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                          activation=tf.nn.leaky_relu,
                                                          kernel_initializer=tf.initializers.he_normal(),
                                                          bias_initializer=tf.initializers.he_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                          dtype = self.dtype,
                                                          )
         self.compositions12 = tf.keras.layers.Convolution2D(self.texture_compositions,
@@ -49,7 +50,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                          activation=tf.nn.leaky_relu,
                                                          kernel_initializer=tf.initializers.he_normal(),
                                                          bias_initializer=tf.initializers.he_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                          dtype = self.dtype,
                                                          )
         self.compositions21 = tf.keras.layers.Convolution2D(self.texture_compositions,
@@ -59,7 +60,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                          activation=tf.nn.leaky_relu, 
                                                          kernel_initializer=tf.initializers.he_normal(),
                                                          bias_initializer=tf.initializers.he_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                          dtype = self.dtype,
                                                          )
         self.compositions22 = tf.keras.layers.Convolution2D(self.texture_compositions,
@@ -69,7 +70,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                          activation=tf.nn.leaky_relu,
                                                          kernel_initializer=tf.initializers.he_normal(),
                                                          bias_initializer=tf.initializers.he_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                          dtype = self.dtype,
                                                          )
         self.compositions3 = tf.keras.layers.Convolution2D(self.texture_compositions,
@@ -79,7 +80,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                         activation=tf.nn.leaky_relu,
                                                         kernel_initializer=tf.initializers.he_normal(),
                                                         bias_initializer=tf.initializers.he_uniform(),
-                                                        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                        kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                         dtype = self.dtype,
                                                         )
         self.compress = tf.keras.layers.Convolution2D(self.out_channel,
@@ -89,7 +90,7 @@ class LowLevelExtractor(tf.keras.layers.Layer):
                                                    activation=tf.nn.leaky_relu,
                                                    kernel_initializer=tf.initializers.he_normal(),
                                                    bias_initializer=tf.initializers.he_uniform(),
-                                                   kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                   kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                    dtype = self.dtype,
                                                    )
 

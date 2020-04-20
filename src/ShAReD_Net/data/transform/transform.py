@@ -1,12 +1,16 @@
 import tensorflow as tf
+import numpy as np
 
 from ShAReD_Net.configure import config
 
 # Model dataset params
+cut_steps = config.model.data.cut_steps
+cut_min_dist = config.model.data.cut_min_dist
 cut_delta = config.model.data.cut_delta
 upscaling = config.model.data.upscaling
 downsample_pose = config.model.img_downsampling
 downsample_heatmap = config.model.roi_downsampling
+roi_size = np.asarray(config.model.roi_size)
 
 
 cam_transform = config.dataset.cam_transform
@@ -15,7 +19,7 @@ cam_intr_f = cam_transform[0,0]
 
 
 ## DATASET
-def create_dataset(data_split, cut_dist):
+def create_data_at_cutdist_dataset(data_split, cut_dist):
     img_poses_ds = config.dataset.create_dataset(data_split)
     img_poses_poss_ds = create_img_poses_poss_dataset(img_poses_ds)
     imgcut_poses_poss_ds = create_imgcut_poses_poss_dataset(img_poses_poss_ds, cut_dist)
@@ -24,9 +28,10 @@ def create_dataset(data_split, cut_dist):
     filtered_cutposes_cutposs_ds = create_filtered_cutposes_cutposs_dataset(imgcut_cutposes_cutposs_ds)
     imgcut_cutposes_cutposs_heatmap_indices_ds = create_imgcut_cutposes_cutposs_heatmap_indices_dataset(filtered_cutposes_cutposs_ds, cut_dist)
     imgcut_cutposes_cutposs_heatmap_indices_weights_ds = create_imgcut_cutposes_cutposs_heatmap_indices_weights_dataset(imgcut_cutposes_cutposs_heatmap_indices_ds)
-    imgcut_relposes_roiindices_heatmap_indices_weights_ds = create_imgcut_relposes_roiindices_heatmap_indices_weights_dataset(imgcut_cutposes_cutposs_heatmap_indices_weights_ds, cut_dist)    
+    imgcut_relposes_roiindices_heatmap_indices_weights_ds = create_imgcut_relposes_roiindices_heatmap_indices_weights_dataset(imgcut_cutposes_cutposs_heatmap_indices_weights_ds, cut_dist) 
+    imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds = create_imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_ds)
     
-    batchable_ds = create_batchable_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_ds)
+    batchable_ds = create_batchable_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds)
     return batchable_ds
 
 #----------------------------------------------------------
@@ -50,13 +55,12 @@ def img_poses_poss_convert_img_to_imgcut(cut_dist, cut_delta, upscaling, cam_int
     def frustum_image(image, poses, poss):
         scaled_img = scale_img_to_pos(image, cut_dist, upscaling, cam_intr_f)
         filtered_poss, filtered_poses = filter_poss_and_pose(poss, poses, cut_dist, cut_delta)
-        #tf.print("original poss, poses",filtered_poss, filtered_poses)
         return scaled_img, filtered_poses, filtered_poss
     return frustum_image
 
 def scale_img_to_pos(image, dist, upscaling, cam_intr_f):
-
-    new_size = tf.cast(tf.shape(image)[:-1], dtype=tf.float32) * upscaling * dist / cam_intr_f
+    image_size = tf.shape(image)[:-1]
+    new_size = tf.cast(image_size, dtype=tf.float32) * upscaling * dist / cam_intr_f
     sized_img = tf.image.resize_with_pad(image, tf.cast(new_size[0], dtype=tf.int32), tf.cast(new_size[1], dtype=tf.int32), antialias=True)
 
     return sized_img
@@ -65,6 +69,12 @@ def filter_poss_and_pose(poss, poses, dist, dist_delta):
     indexes = tf.where(tf.abs(poss[:,-1]-dist) < dist_delta)
     filtered_poss = tf.gather_nd(poss, indexes)
     filtered_poses = tf.gather_nd(poses, indexes)
+    
+    for k in range(15):
+        indexes = tf.where(tf.abs(filtered_poses[:,k,-1]-dist) < dist_delta)
+        
+        filtered_poss = tf.gather_nd(filtered_poss, indexes)
+        filtered_poses = tf.gather_nd(filtered_poses, indexes)
 
     return filtered_poss, filtered_poses
 
@@ -80,7 +90,6 @@ def imgcut_poses_poss_convert_poses_poss_to_imgposes_imgposs(cam_transform):
     def to_img(img, poses, poss):
         poss_img = poss_to_img(poss, cam_transform)
         poses_img = poses_to_img(poses, cam_transform)
-        #tf.print("image poss, poses",poss_img, poses_img)
         return img, poses_img, poss_img
     return to_img
 
@@ -106,7 +115,6 @@ def imgcut_imgposes_imgposs_convert_imgposes_imgposs_to_cutposes_cutposs(cut_dis
         poss_cut = poss_to_cut(poss, cut_dist, upscaling, cam_intr_f)
         poses_cut = poses_to_cut(poses, cut_dist, upscaling, cam_intr_f)
         poss_cut_filtered, poses_cut_filtered = filter_poss_and_pose_img_size(poss_cut, poses_cut, tf.shape(img)[:-1])
-        #tf.print("cut poss, poses",poss_cut_filtered, poses_cut_filtered)
         return img, poses_cut_filtered, poss_cut_filtered
     return to_cut
 
@@ -170,23 +178,13 @@ def imgcut_cutposes_cutposs_add_heatmap_indices(cut_dist, cut_delta, downsample_
         map_indices = tf.maximum(tf.minimum(map_indices, hm_size - 1), 0)
         
         dist = poss[:,-1]
-        values = 1 - (dist - cut_dist) / cut_delta 
-        
-        pos_indices = tf.where(values >= 0)
-        neg_indices = tf.where(values < 0)
-        pos_val = tf.gather_nd(values, pos_indices)
-        neg_val = tf.abs(tf.gather_nd(values, neg_indices))
+        values = (dist - cut_dist) / cut_delta
+        pos_indices = tf.where(tf.math.logical_and(values >= 0,values < 1))
+        neg_indices = tf.where(tf.math.logical_and(values <= 0,values > -1))
+        pos_val = 1 - tf.gather_nd(values, pos_indices)
+        neg_val = 1 + tf.gather_nd(values, neg_indices)
         pos_map_indices = tf.gather_nd(map_indices, pos_indices)
         neg_map_indices = tf.gather_nd(map_indices, neg_indices)
-        
-        #TODO make sure indices not out of bound
-        
-        
-        
-        if tf.reduce_any(hm_size <= map_indices):
-            tf.print(map_indices)
-            tf.print(img_size)
-            tf.print(hm_size)
         
         pos_sparse_hm = tf.SparseTensor(pos_map_indices, pos_val, hm_size)
         pos_heatmap = tf.expand_dims(tf.sparse.to_dense(pos_sparse_hm, validate_indices=False),axis=-1)
@@ -210,7 +208,6 @@ def imgcut_cutposes_cutposs_heatmap_indices_add_weights(img, poses, poss, heatma
     return img, poses, poss, heatmap, indices, weights
 
 def heatmap_to_weights(heatmap):
-    
     bin_heatmap = tf.math.ceil(heatmap)
 
     heatmap_batch = tf.expand_dims(bin_heatmap,axis=0)
@@ -252,11 +249,9 @@ def imgcut_cutposes_cutposs_heatmap_indices_weights_convert_cutposes_cutpos_to_r
     return convert_cutposes_cutpos_to_relposes_roiindices
 
 def poses_indices_to_relposes_roiindices(poses, indices, cut_dist, downsample_pose, downsample_heatmap):
-    downsample_pose = 4
-    downsample_heatmap = 16
-    rel_poss = tf.cast(indices * downsample_heatmap, dtype=tf.float32)
+    abs_poss = tf.cast(indices * downsample_heatmap, dtype=tf.float32)[:,::-1]
     roi_indices = tf.cast(tf.cast(indices * downsample_heatmap, dtype=tf.float32) / downsample_pose + 0.5 , dtype=tf.int32)
-    rel_poses_xy = poses[:,:,:-1] - rel_poss[:,None,:]
+    rel_poses_xy = poses[:,:,:-1] - abs_poss[:,None,:]
     rel_poses_z = poses[:,:,-1,None] - cut_dist
     rel_poses = tf.concat([rel_poses_xy, rel_poses_z], axis = -1)
     return rel_poses, roi_indices
@@ -268,14 +263,35 @@ def create_imgcut_relposes_roiindices_heatmap_indices_weights_dataset(imgcut_cut
 
 #----------------------------------------------------------
 
+def imgcut_relposes_roiindices_heatmap_indices_weights_add_poseindexes(downsample_pose, roi_size):
+    def add_poseindexes(img, rel_poses, roi_indices, heatmap, indices, weights):
+        pose_indexes = relposes_to_poseindexes(rel_poses, downsample_pose, roi_size)
+        return img, rel_poses, roi_indices, heatmap, indices, weights, pose_indexes
+    return add_poseindexes
+
+def relposes_to_poseindexes(rel_poses, downsample_pose, roi_size):
+    pose_indexes = tf.cast(rel_poses[...,:-1] / downsample_pose + roi_size/2 + 0.5 , dtype=tf.int32)
+    pose_indexes = tf.maximum(pose_indexes, 0)
+    pose_indexes = tf.minimum(pose_indexes, roi_size)
+    return pose_indexes[...,::-1]
+
+## DATASET
+def create_imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_ds):
+    imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds = imgcut_relposes_roiindices_heatmap_indices_weights_ds.map(imgcut_relposes_roiindices_heatmap_indices_weights_add_poseindexes(downsample_pose, roi_size))
+    return imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds
+
+#----------------------------------------------------------
+
+
 def make_ragged_annotation(anno):
     expanded = tf.expand_dims(anno, 0)
     return tf.RaggedTensor.from_tensor(expanded)
 
-def prepare_batching(img, rel_poses, roi_indices, heatmap, indices, weights):
+def prepare_batching(img, rel_poses, roi_indices, heatmap, indices, weights, pose_indexes):
     roi_indexes = make_ragged_annotation(roi_indices)
     rel_pose = make_ragged_annotation(rel_poses)
-    return img, (heatmap, weights), (roi_indexes, rel_pose)
+    pose_indexes = make_ragged_annotation(pose_indexes)
+    return img, (heatmap, weights), roi_indexes, (rel_pose, pose_indexes)
 
 
 def squeeze_annotation(anno):
@@ -293,3 +309,26 @@ def create_batchable_dataset(dataset):
     return batchable_ds
 
 #----------------------------------------------------------
+
+## DATASET
+def create_cutdist_dataset():
+    cut_max_dist = cut_min_dist + cut_steps * cut_delta
+    cutdist_ds = tf.data.Dataset.from_tensor_slices(tf.range(cut_min_dist, cut_max_dist, cut_delta, dtype=tf.float32))
+    return cutdist_ds
+
+#----------------------------------------------------------
+
+def interleav_dataset(data_split):
+    def interleav(cut_dist):
+        return create_data_at_cutdist_dataset(data_split, cut_dist)
+    return interleav
+    
+
+## DATASET
+def create_dataset(data_split, batch_size):
+    cutdist_ds = create_cutdist_dataset()
+    interleaved_multiscale_ds = cutdist_ds.interleave(interleav_dataset(data_split), block_length=batch_size)
+    return interleaved_multiscale_ds
+
+#----------------------------------------------------------
+

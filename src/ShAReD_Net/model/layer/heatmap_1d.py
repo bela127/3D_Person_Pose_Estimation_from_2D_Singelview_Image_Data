@@ -78,8 +78,11 @@ class VarianceLocatonLoss(tf.keras.layers.Layer):
     @tf.function
     def call(self, loc_prop_map, loc_map, gt_loc):
         variance = tf.reduce_sum(loc_prop_map * (loc_map - gt_loc)**2, axis=[3])
-        shifted_var = (tf.math.maximum(variance,self.variance_offset) - self.variance_offset)
-        return tf.expand_dims(shifted_var,axis=-1)
+        maxed_var = tf.math.maximum(variance,self.variance_offset)
+        max_loss = (maxed_var-variance)**2
+        shifted_var = maxed_var - self.variance_offset
+        shifted_var = tf.expand_dims(shifted_var,axis=-1)
+        return shifted_var + max_loss
 
 class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
     def __init__(self, loc_delta, name = "VarianceLocationAndPossitionLoss", **kwargs):
@@ -90,7 +93,7 @@ class VarianceLocationAndPossitionLoss(tf.keras.layers.Layer):
     def call(self, loc_prop_map, loc, loc_map, gt_loc):
         se = (loc-gt_loc)**2
         vll = self.vll(loc_prop_map, loc_map, gt_loc)
-        return (se, vll)
+        return se, vll
 
 class MaskFromIndex(tf.keras.layers.Layer):
     def __init__(self, name = "MaskFromIndex", **kwargs):

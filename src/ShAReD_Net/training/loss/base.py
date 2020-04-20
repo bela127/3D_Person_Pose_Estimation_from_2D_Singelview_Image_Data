@@ -278,7 +278,7 @@ class PoseLoss(tf.keras.layers.Layer):
         #limbs = limb_length(loc_xyz)
         #sym_loss = symmetry_loss(limbs)
         
-        return hard_kp_loss_xy, hard_kp_loss_z
+        return hard_kp_loss_xy, hard_kp_loss_z, loc_xyz
 
 class PersonPosFromPose(tf.keras.layers.Layer):
     def __init__(self, name = "PersonPosFromPose", **kwargs):

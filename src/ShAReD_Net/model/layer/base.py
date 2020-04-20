@@ -6,6 +6,8 @@ import tensorflow as tf
 import tensorflow.keras as keras
 import numpy as np
 
+from ShAReD_Net.configure import config
+
 class BnDoConfReluConfRelu(keras.layers.Layer):
     def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "BnDoConfReluConfRelu", **kwargs):
         super().__init__(name = name, **kwargs)
@@ -24,7 +26,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
                                                 activation=tf.nn.leaky_relu,
                                                 kernel_initializer=tf.initializers.he_normal(),
                                                 bias_initializer=tf.initializers.he_uniform(),
-                                                kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                 dtype=self.dtype,
                                                 )
         self.conv2 = keras.layers.Convolution2D(self.filter_count,
@@ -33,7 +35,7 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
                                                 activation=tf.nn.leaky_relu,
                                                 kernel_initializer=tf.initializers.he_normal(),
                                                 bias_initializer=tf.initializers.he_uniform(),
-                                                kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                 dtype=self.dtype,
                                                 )
         super().build(input_shape)
@@ -95,7 +97,7 @@ class DenseModule(keras.layers.Layer):
                                                    activation=tf.nn.leaky_relu,
                                                    kernel_initializer=tf.initializers.he_normal(),
                                                    bias_initializer=tf.initializers.he_uniform(),
-                                                   kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                   kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                    dtype=self.dtype,
                                                    )
         self.blocks = [DenseBlock(filter_count = self.filter_count,rate = self.rate, filter_size = self.filter_size) for i in range(self.blocks_count)]
@@ -132,7 +134,7 @@ class ShReD(keras.layers.Layer):
                                                     activation=tf.nn.leaky_relu,
                                                     kernel_initializer=tf.initializers.he_normal(),
                                                     bias_initializer=tf.initializers.he_uniform(),
-                                                    kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                    kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                     dtype=self.dtype,
                                                     )
         super().build(input_shape)
@@ -164,7 +166,7 @@ class Attention(keras.layers.Layer):
                                                     activation=tf.nn.sigmoid,
                                                     kernel_initializer=tf.initializers.glorot_normal(),
                                                     bias_initializer=tf.initializers.glorot_uniform(),
-                                                    kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                    kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                     dtype=self.dtype,
                                                     )
         super().build(input_shape)
@@ -196,7 +198,7 @@ class ResAttention(keras.layers.Layer):
                                                    activation=tf.nn.leaky_relu,
                                                    kernel_initializer=tf.initializers.he_normal(),
                                                    bias_initializer=tf.initializers.he_uniform(),
-                                                   kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                   kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                    dtype=self.dtype,
                                                    )
         super().build(input_shape)
@@ -290,7 +292,7 @@ class Scale(keras.layers.Layer):
                                                          activation=tf.nn.leaky_relu,
                                                          kernel_initializer=tf.initializers.he_normal(),
                                                          bias_initializer=tf.initializers.he_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                          dtype=self.dtype,
                                                          )
         self.conv = keras.layers.Convolution2D(input_shape[-1],
@@ -299,7 +301,7 @@ class Scale(keras.layers.Layer):
                                                activation=tf.nn.leaky_relu,
                                                kernel_initializer=tf.initializers.he_normal(),
                                                bias_initializer=tf.initializers.he_uniform(),
-                                               kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                               kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                dtype=self.dtype,
                                                )
         self.pool = keras.layers.MaxPool2D(pool_size=3,strides=1,padding="SAME")
@@ -309,7 +311,7 @@ class Scale(keras.layers.Layer):
                                                           activation=tf.nn.leaky_relu,
                                                           kernel_initializer=tf.initializers.he_normal(),
                                                           bias_initializer=tf.initializers.he_uniform(),
-                                                          kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                          kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                           dtype=self.dtype,
                                                           )
         super().build(input_shape)

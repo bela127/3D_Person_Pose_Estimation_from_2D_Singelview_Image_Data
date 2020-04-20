@@ -76,11 +76,11 @@ def main():
     data_split = "train"
     
     with tf.device("/cpu:0"):
-        train_ds = transform.create_dataset(data_split, cut_dist= 8).cache().shuffle(500)
+        train_ds = transform.create_dataset(data_split, cut_dist= 8).shuffle(500)
 
     dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
 
-    steps = 20000
+    steps = 50000
     
     step_callbacks = train.standart_callbacks()
     step_callbacks.every_steps[20] = print_loss
@@ -101,7 +101,7 @@ def main():
     step_callbacks.create_model = train_model
 
     try:
-        train.train(steps, train_ds, dist_strat, batch_size = 4, learning_rate=0.001, callbacks = step_callbacks)
+        train.train(steps, train_ds, dist_strat, batch_size = config.training.batch_size, learning_rate=config.training.learning_rate, callbacks = step_callbacks)
     except Exception as e:
         print(e)
         input("throw?")
@@ -122,9 +122,9 @@ def grad_pre(loss, extra_loss, batch):
     (detection_loss, estimator_loss_xy, estimator_loss_z) = loss
     
     extra_loss_sum = tf.reduce_sum(extra_loss)
-    detection_loss_sum = tf.reduce_sum(detection_loss)
-    estimator_loss_xy_sum = tf.reduce_sum(estimator_loss_xy) / 100
-    estimator_loss_z_sum = tf.reduce_sum(estimator_loss_z)
+    detection_loss_sum = tf.reduce_sum(detection_loss) * 1000
+    estimator_loss_xy_sum = tf.reduce_sum(estimator_loss_xy)
+    estimator_loss_z_sum = tf.reduce_sum(estimator_loss_z) * 100
     
     loss_per_batch = detection_loss_sum + estimator_loss_xy_sum + estimator_loss_z_sum
     
@@ -173,9 +173,9 @@ def print_loss(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_
     detection_loss, estimator_loss_xy, estimator_loss_z = loss
        
     extra_loss_sum = tf.reduce_sum(extra_loss)
-    detection_loss_sum = tf.reduce_sum(detection_loss)
-    estimator_loss_xy_sum = tf.reduce_sum(estimator_loss_xy) / 100
-    estimator_loss_z_sum = tf.reduce_sum(estimator_loss_z)
+    detection_loss_sum = tf.reduce_sum(detection_loss) * 1000
+    estimator_loss_xy_sum = tf.reduce_sum(estimator_loss_xy)
+    estimator_loss_z_sum = tf.reduce_sum(estimator_loss_z) * 100
     
     tf.print("On", dev)
     tf.print("detection_loss", detection_loss_sum)
@@ -187,9 +187,9 @@ def simple_summery(dev, step, batch, output, loss, extra_loss, ckpt, manager, tr
     detection_loss, estimator_loss_xy, estimator_loss_z = loss
        
     extra_loss_sum = tf.reduce_sum(extra_loss)
-    detection_loss_sum = tf.reduce_sum(detection_loss)
-    estimator_loss_xy_sum = tf.reduce_sum(estimator_loss_xy) / 100
-    estimator_loss_z_sum = tf.reduce_sum(estimator_loss_z)
+    detection_loss_sum = tf.reduce_sum(detection_loss) * 1000
+    estimator_loss_xy_sum = tf.reduce_sum(estimator_loss_xy)
+    estimator_loss_z_sum = tf.reduce_sum(estimator_loss_z) * 100
     
     tf.summary.scalar(f"detection_loss {dev}", detection_loss_sum)
     tf.summary.scalar(f"estimator_loss_xy {dev}", estimator_loss_xy_sum)

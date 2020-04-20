@@ -7,6 +7,7 @@ import ShAReD_Net.model.layer.base as layer_base
 import ShAReD_Net.model.activation.base as activation_base
  
 from ShAReD_Net.model.modules.feature import LowLevelExtractor
+from ShAReD_Net.configure import config
 
 import ShAReD_Net.model.layer.base as base_layer
 
@@ -19,7 +20,7 @@ class ShAReDHourGlass(keras.layers.Layer):
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
-        self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared1")
+        self.big_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared1")
         
         self.big_normal = base_layer.Scale(name="big_normal")
         
@@ -43,7 +44,7 @@ class ShAReDHourGlass(keras.layers.Layer):
 
         self.normal_big = base_layer.Scale(name="normal_big")
 
-        self.big_shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared3")
+        self.big_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared3")
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
@@ -121,7 +122,7 @@ class Encoder(keras.layers.Layer):
         self.scale2_res = layer_base.Scale(destination_channel_2, name= "scale_1_2_res")
         self.scale4_res = layer_base.Scale(destination_channel_4, name= "scale_1_4_res")
         self.scale8_res = layer_base.Scale(destination_channel_8, name= "scale_1_8_res")
-        
+                
         self.scale2_shc = layer_base.Scale(name= "scale_1_2_shc")
         self.scale4_shc = layer_base.Scale(name= "scale_1_4_shc")
         self.scale8_shc = layer_base.Scale(name= "scale_1_8_shc")
@@ -132,25 +133,25 @@ class Encoder(keras.layers.Layer):
     def call(self, inputs, training=None):
         image = inputs
         
-        size = tf.cast(tf.shape(image)[1:3], dtype=tf.int32)
-        size_2 = tf.cast(size/2, dtype=tf.int32)
-        size_4 = tf.cast(size/4, dtype=tf.int32)
-        size_8 = tf.cast(size/8, dtype=tf.int32)
+        size_1 = tf.cast(tf.shape(image)[1:3], dtype=tf.int32)
+        size_2 = tf.cast(size_1/2, dtype=tf.int32)
+        size_4 = tf.cast(size_1/4, dtype=tf.int32)
+        size_8 = tf.cast(size_1/8, dtype=tf.int32)
         
         out1_res, out1_shc = self.stage1([image,image],training = training)
-        scale1_res = self.scale2_res(out1_res, size_2)
+        scale1_res = self.scale2_res(out1_res, size_1)
         scale1_shc = self.scale2_shc(out1_shc, size_2)
         
         out2_res, out2_shc = self.stage2([scale1_res, scale1_shc],training = training)
-        scale2_res = self.scale4_res(out2_res, size_4)
+        scale2_res = self.scale4_res(out2_res, size_2)
         scale2_shc = self.scale4_shc(out2_shc, size_4)
         
         out3_res, out3_shc = self.stage3([scale2_res, scale2_shc],training = training)
-        scale3_res = self.scale8_res(out3_res, size_8)
-        scale3_shc = self.scale8_shc(out3_shc, size_8)
+        scale3_res = self.scale8_res(out3_res, size_4)
+        scale3_shc = self.scale8_shc(out3_shc, size_4)
 
         pos_decoder = [scale3_res, scale3_shc]
-        pose_decoder = tf.concat([out3_res, out3_shc], axis = -1)
+        pose_decoder = tf.concat([out3_res, out2_shc], axis = -1)
         
         return pose_decoder, pos_decoder
         
@@ -168,6 +169,7 @@ class PosDecoder(keras.layers.Layer):
     
     def build(self, input_shape):
         print(self.name,input_shape)
+        res_shape, shc_shape = input_shape
         self.self_ShAReD_1 = layer_base.SelfShAReD(dense_blocks_count = self.dense_blocks_count, dense_filter_count = self.dense_filter_count)
 
         self.stage = ShAReDHourGlass(dense_blocks_count = self.dense_blocks_count, dense_filter_count = self.dense_filter_count)
@@ -177,15 +179,25 @@ class PosDecoder(keras.layers.Layer):
         
         self.self_ShAReD_2 = layer_base.SelfShAReD(dense_blocks_count = self.dense_blocks_count, dense_filter_count = self.dense_filter_count)
         
+        self.conv = keras.layers.Convolution2D(res_shape[-1],
+                                             kernel_size=3,
+                                             padding='SAME',
+                                             activation=None,
+                                             kernel_initializer=tf.initializers.glorot_normal(),
+                                             bias_initializer=tf.initializers.glorot_uniform(),
+                                             kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                             dtype=self.dtype,
+                                             )
+        
         self.compress_output = keras.layers.Convolution2D(2,
-                                                         kernel_size=1,
-                                                         padding='SAME',
-                                                         activation=None,
-                                                         kernel_initializer=tf.initializers.glorot_normal(),
-                                                         bias_initializer=tf.initializers.glorot_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                         dtype=self.dtype,
-                                                         )
+                                             kernel_size=1,
+                                             padding='SAME',
+                                             activation=None,
+                                             kernel_initializer=tf.initializers.glorot_normal(),
+                                             bias_initializer=tf.initializers.glorot_uniform(),
+                                             kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                             dtype=self.dtype,
+                                             )
         
         super().build(input_shape)
 
@@ -203,7 +215,9 @@ class PosDecoder(keras.layers.Layer):
         scale_res = self.scale2_res(stage_res, size_2)
         scale_shc = self.scale2_shc(stage_shc, size_2)
         
-        att_res_2, att_shc_2 = self.self_ShAReD_2([scale_res, scale_shc], training = training)
+        scale_res_max = activation_base.discret_sigmoid(self.conv(scale_res), training = training)
+        
+        att_res_2, att_shc_2 = self.self_ShAReD_2([scale_res_max, scale_shc], training = training)
         
         concat = tf.concat([att_res_2, att_shc_2], axis = -1)
         
@@ -233,24 +247,28 @@ class PoseDecoder(keras.layers.Layer):
         self.self_ShAReD_2 = layer_base.SelfShAReD(dense_blocks_count = self.dense_blocks_count, dense_filter_count = self.dense_filter_count)
         
         self.compress_feature = keras.layers.Convolution2D((self.keypoints + self.z_bins)*2,
-                                                         kernel_size=1,
-                                                         padding='SAME',
-                                                         activation=tf.nn.leaky_relu,
-                                                         kernel_initializer=tf.initializers.he_normal(),
-                                                         bias_initializer=tf.initializers.he_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                         dtype=self.dtype,
-                                                         )
+                                             kernel_size=1,
+                                             padding='SAME',
+                                             activation=tf.nn.leaky_relu,
+                                             kernel_initializer=tf.initializers.he_normal(),
+                                             bias_initializer=tf.initializers.he_uniform(),
+                                             kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                             dtype=self.dtype,
+                                             )
         
         self.compress_output = keras.layers.Convolution2D(self.keypoints + self.z_bins,
-                                                         kernel_size=3,
-                                                         padding='SAME',
-                                                         activation=tf.nn.tanh,
-                                                         kernel_initializer=tf.initializers.glorot_normal(),
-                                                         bias_initializer=tf.initializers.glorot_uniform(),
-                                                         kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                                                         dtype=self.dtype,
-                                                         )
+                                             kernel_size=3,
+                                             padding='SAME',
+                                             activation=None,
+                                             kernel_initializer=tf.initializers.glorot_normal(),
+                                             bias_initializer=tf.initializers.glorot_uniform(),
+                                             kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                             dtype=self.dtype,
+                                             )
+        
+        self.pos_dep1 = PositionDependency()
+        
+        self.pos_dep2 = PositionDependency()
         
         super().build(input_shape)
 
@@ -263,12 +281,56 @@ class PoseDecoder(keras.layers.Layer):
         
         stage_compressed = self.compress_feature(stage_res)
         
-        att_res_2, att_shc_2 = self.self_ShAReD_2([stage_compressed, stage_shc], training = training)
+        pos_dep1 = self.pos_dep1(stage_compressed)
         
-        concat = tf.concat([att_res_2, att_shc_2], axis = -1)
+        att_res_2, att_shc_2 = self.self_ShAReD_2([pos_dep1, stage_shc], training = training)
+        
+        pos_dep2 = self.pos_dep2(att_res_2)
+        
+        concat = tf.concat([pos_dep2, att_shc_2], axis = -1)
         
         out = self.compress_output(concat)
         return out
+        
+    def get_config(self):
+        config = super().get_config()
+        return config
+    
+class  PositionDependency(keras.layers.Layer):
+    def __init__(self, name = "PositionDependency", **kwargs):
+        super().__init__(name = name, **kwargs)
+
+    
+    def build(self, input_shape):
+        print(self.name,input_shape)
+        self.original_shape = input_shape
+        self.compress = keras.layers.Convolution2D(10,
+                                            kernel_size=3,
+                                            strides=3,
+                                            padding='VALID',
+                                            activation=tf.nn.relu,
+                                            kernel_initializer=tf.initializers.he_normal(),
+                                            bias_initializer=tf.initializers.he_uniform(),
+                                             kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                            dtype=self.dtype,
+                                           )
+                
+        self.flatt = tf.keras.layers.Flatten()
+        
+        self.combine = tf.keras.layers.Dense(input_shape[1] * input_shape[2] * 5, activation=tf.nn.relu, kernel_initializer=tf.initializers.he_normal())
+
+        super().build(input_shape)
+
+    @tf.function(experimental_relax_shapes=True)
+    def call(self, inputs):
+        
+        compressed = self.compress(inputs)
+        combined = self.combine(self.flatt(compressed))
+        
+        
+        poss_dep = tf.reshape(combined, [-1,self.original_shape[1],self.original_shape[2],5])
+        
+        return tf.concat([poss_dep,inputs],axis = -1)
         
     def get_config(self):
         config = super().get_config()

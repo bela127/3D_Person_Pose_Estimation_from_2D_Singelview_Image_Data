@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import ShAReD_Net.training.loss.base as loss_base
-
+from ShAReD_Net.configure import config
     
 class CropROI3D(tf.keras.layers.Layer):
     def __init__(self, roi_size = [1,9,9,1], name = "CropROI3D", **kwargs):
@@ -134,7 +134,7 @@ class Interleave(tf.keras.layers.Layer):
                                                       activation=tf.nn.leaky_relu,
                                                       kernel_initializer=tf.initializers.he_normal(),
                                                       bias_initializer=tf.initializers.he_uniform(),
-                                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                                       dtype=self.dtype,
                                                       )
         self.out_chanel = res_shape[-1] * 2
@@ -193,7 +193,7 @@ class Expand3D(tf.keras.layers.Layer):
                                         padding='same',
                                         activation=tf.nn.leaky_relu,
                                         kernel_initializer=tf.initializers.he_uniform(),
-                                        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                        kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                         dtype=self.dtype,
                                         )
         self.tconf2 = tf.keras.layers.Conv3DTranspose(filters = input_shape[-1]/2,
@@ -202,7 +202,7 @@ class Expand3D(tf.keras.layers.Layer):
                                         padding='same',
                                         activation=tf.nn.leaky_relu,
                                         kernel_initializer=tf.initializers.he_uniform(),
-                                        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                        kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                         dtype=self.dtype,
                                         )
         self.conf1 = tf.keras.layers.Convolution3D(filters = input_shape[-1]/2,
@@ -211,7 +211,7 @@ class Expand3D(tf.keras.layers.Layer):
                                       padding='same',
                                       activation=tf.nn.leaky_relu,
                                       kernel_initializer=tf.initializers.he_uniform(),
-                                      kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                      kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
                                       dtype=self.dtype,
                                       )
         super().build(inputs_shape)

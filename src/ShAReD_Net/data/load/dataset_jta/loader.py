@@ -27,11 +27,12 @@ sys.modules['joint'] = joint
 sys.modules['pose'] = pose
 
 def create_dataset(data_split):
-    img_root = pathlib.Path(IMG_PATH)
-    anno_root = tf.constant(ANNO_PATH)
+    img_root = IMG_PATH
+    anno_root = ANNO_PATH
     return create_img_poses_dataset(img_root, anno_root, data_split)
 
 def create_img_poses_dataset(img_root, anno_root, data_split):
+    anno_root = tf.constant(anno_root)
     file_ds = create_file_dataset(img_root, data_split)
     img_poses_ds = file_ds.map(img_path_to_img_and_poses(anno_root),
                          num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -40,6 +41,7 @@ def create_img_poses_dataset(img_root, anno_root, data_split):
 
 #TODO only hardcoded train dataset
 def create_file_dataset(img_root, data_split):
+    img_root = pathlib.Path(img_root)
     file_ds = tf.data.Dataset.list_files(str(img_root/f'{data_split}/*/*'))
     return file_ds
 
