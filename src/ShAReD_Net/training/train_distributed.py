@@ -53,13 +53,13 @@ def main():
     
     train(400, get_train_model, dataset, dist_strat, batch_size = 16, callbacks = step_callbacks)
 
-def print_step(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model):
+def print_step(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads_vars):
     tf.print("Step:", step)
     
-def print_loss(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model):
+def print_loss(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads_vars):
     tf.print("Loss:", loss)
     
-def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model):
+def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads_vars):
     prob_maps = tf.unstack(train_model.representation, axis=-1)
     for prob_map_batch in prob_maps:
         prob_map_batch = heatmap_2d.feature_to_location_propability_map(prob_map_batch)
@@ -164,9 +164,6 @@ def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = s
         #tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
         non_nan_gradients1 = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients1]
         capped_gradients1, norm = tf.clip_by_global_norm(non_nan_gradients1, 10.)
-        tf.print("current gradient norm", norm)
-        tf.print("current gradient max", tf.reduce_max(non_nan_gradients1))
-        tf.print("current gradient mean", tf.reduce_mean(non_nan_gradients1))
         
         to_optimize1 = zip(capped_gradients1, trainable_vars)
         
@@ -174,10 +171,10 @@ def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = s
         
         for callback_step, step_callback in callbacks.every_steps.items():
             if callback_step > 0 and step % callback_step == 0:
-                step_callback(dev, step, batch, output, loss, extra_loss_list, ckpt, manager, train_model)
+                step_callback(dev, step, batch, output, loss, extra_loss_list, ckpt, manager, train_model, non_nan_gradients1)
         for callback_step, step_callback in callbacks.at_step.items():
             if step == callback_step:
-                step_callback(dev, step, batch, output, loss, extra_loss_list, ckpt, manager, train_model)
+                step_callback(dev, step, batch, output, loss, extra_loss_list, ckpt, manager, train_model, non_nan_gradients1)
     
     @tf.function(experimental_relax_shapes=True)
     def train_step(batch): 
