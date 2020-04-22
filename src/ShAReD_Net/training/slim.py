@@ -41,14 +41,25 @@ class SlimTrainingModel(keras.layers.Layer):
         training=True
         
         low_level_feature = self.low_level_extractor(image)
+        
+        #low_level_feature = tf.debugging.check_numerics(low_level_feature, "low_level_feature are invalid")
     
         encoded_pose, encoded_pos = self.encoder(low_level_feature, training = training)
+        
+        #encoded_pose = tf.debugging.check_numerics(encoded_pose, "encoded_pose is invalid")
+        #encoded_pos_res = tf.debugging.check_numerics(encoded_pos[0], "encoded_pos is invalid")
+        #encoded_pos_shc = tf.debugging.check_numerics(encoded_pos[1], "encoded_pos is invalid")
+        #encoded_pos = [encoded_pos_res, encoded_pos_shc]
     
         pos_hm = self.pos_decoder(encoded_pos, training = training)
             
         roi_feature = self.roi_extractor([encoded_pose, roi_indexes])
+        
+        #roi_feature = tf.debugging.check_numerics(roi_feature, "pose roi_feature is invalid")
     
         pose_hm = self.pose_decoder(roi_feature, training = training)
+        
+        #pose_hm = tf.debugging.check_numerics(pose_hm, "pose heatmap is invalid")
         
         poses_xyz, pose_prob_map_xy, pose_prob_maps_z = self.pose_extractor([pose_hm, pose_indexes])
     
@@ -124,6 +135,9 @@ class SlimTrainXYExtractor(keras.layers.Layer):
         loc_map_xy = self.loc_map_xy([0.,0.])
         
         poses_xy = heatmap_2d.propability_map_to_location([pose_prob_maps_xy, loc_map_xy])
+        
+        #poses_xy = tf.debugging.check_numerics(poses_xy, "xy pose is invalid")
+        #pose_prob_maps_xy = tf.debugging.check_numerics(pose_prob_maps_xy, "xy prob map is invalid")
 
         return poses_xy, pose_prob_maps_xy
         
@@ -167,6 +181,9 @@ class SlimTrainZExtractor(keras.layers.Layer):
         pose_prob_maps_z = heatmap_1d.feature_to_location_propability_map(relevant_features)
         loc_map_z = self.loc_map_z(0.)
         poses_z = heatmap_1d.propability_map_to_location([pose_prob_maps_z, loc_map_z]) # [b, k, loc[z]]
+        
+        #poses_z = tf.debugging.check_numerics(poses_z, "z poses are invalid")
+        #pose_prob_maps_z = tf.debugging.check_numerics(pose_prob_maps_z, "z prob map is invalid")
     
         return poses_z, pose_prob_maps_z
         
@@ -232,12 +249,8 @@ class LossAggregation(keras.layers.Layer):
     def build(self, input_shape):
         print(self.name,input_shape)
         
-        self.multi_loss_layer_detection = slim_loss.MultiLossLayer()
-        self.multi_loss_layer_loc_xy = slim_loss.MultiLossLayer()
-        self.multi_loss_layer_loc_z = slim_loss.MultiLossLayer()
-        self.multi_loss_layer_var_xy = slim_loss.MultiLossLayer()
-        self.multi_loss_layer_var_z = slim_loss.MultiLossLayer()
-
+        self.multi_loss_layer = slim_loss.MultiLossLayer()
+        
         super().build(input_shape)
 
     @tf.function(experimental_relax_shapes=True)
@@ -245,26 +258,39 @@ class LossAggregation(keras.layers.Layer):
         detection_loss, (loss_pos_xy, loss_var_xy), (loss_pos_z, loss_var_z) = inputs
         
         detection_loss_sum = tf.reduce_sum(detection_loss)
-        detection = self.multi_loss_layer_detection([detection_loss_sum]) * config.training.weighting.detection
-    
-    
-        estimator_loss_xy_list = tf.unstack(loss_pos_xy, axis=1)
-        estimator_loss_z_list = tf.unstack(loss_pos_z, axis=1)
+        
+        detection_loss_sum = tf.where(tf.math.is_nan(detection_loss_sum), tf.zeros_like(detection_loss_sum), detection_loss_sum)
+        detection_loss_sum = tf.where(tf.math.is_inf(detection_loss_sum), tf.float16.max*tf.ones_like(detection_loss_sum), detection_loss_sum)
+        detection_loss_sum = tf.debugging.check_numerics(detection_loss_sum, "detection loss is invalid")
+        
        
-        estimation_loc_xy = self.multi_loss_layer_loc_xy(estimator_loss_xy_list) * config.training.weighting.xy_loc
-        estimation_loc_z = self.multi_loss_layer_loc_z(estimator_loss_z_list) * config.training.weighting.z_loc
+        estimation_loc_xy = tf.reduce_sum(loss_pos_xy)
+        estimation_loc_z = tf.reduce_sum(loss_pos_z)
         
         
-        estimator_loss_var_xy_list = tf.unstack(loss_var_xy, axis=1)
-        estimator_loss_var_z_list = tf.unstack(loss_var_z, axis=1)
+        estimation_var_xy = tf.reduce_sum(loss_var_xy)
+        estimation_var_z = tf.reduce_sum(loss_var_z)
         
-        estimation_var_xy = self.multi_loss_layer_var_xy(estimator_loss_var_xy_list) * config.training.weighting.xy_var
-        estimation_var_z = self.multi_loss_layer_var_z(estimator_loss_var_z_list) * config.training.weighting.z_var
+        estimation_loss_xy = estimation_loc_xy + estimation_var_xy
         
-        loss_per_batch_sum = detection + estimation_loc_xy + estimation_var_xy + estimation_loc_z + estimation_var_z
+        estimation_loss_xy = tf.where(tf.math.is_nan(estimation_loss_xy), tf.zeros_like(estimation_loss_xy), estimation_loss_xy)
+        estimation_loss_xy = tf.where(tf.math.is_inf(estimation_loss_xy), tf.float16.max*tf.ones_like(estimation_loss_xy), estimation_loss_xy)
+        estimation_loss_xy = tf.debugging.check_numerics(estimation_loss_xy, "estimation xy loss is invalid")
+        
+        estimation_loss_z = estimation_loc_z + estimation_var_z
+        
+        estimation_loss_z = tf.where(tf.math.is_nan(estimation_loss_z), tf.zeros_like(estimation_loss_z), estimation_loss_z)
+        estimation_loss_z = tf.where(tf.math.is_inf(estimation_loss_z), tf.float16.max*tf.ones_like(estimation_loss_z), estimation_loss_z)
+        estimation_loss_z = tf.debugging.check_numerics(estimation_loss_z, "estimation z loss is invalid")
+                
+        loss_per_batch_sum = self.multi_loss_layer([detection_loss_sum, estimation_loss_xy, estimation_loss_z])
+        
+        loss_per_batch_sum = tf.where(tf.math.is_nan(loss_per_batch_sum), tf.zeros_like(loss_per_batch_sum), loss_per_batch_sum)
+        loss_per_batch_sum = tf.where(tf.math.is_inf(loss_per_batch_sum), tf.float16.max*tf.ones_like(loss_per_batch_sum), loss_per_batch_sum)
+        loss_per_batch_sum = tf.debugging.check_numerics(loss_per_batch_sum, "batch loss is invalid")
 
         
-        return loss_per_batch_sum, detection, (estimation_loc_xy, estimation_var_xy), (estimation_loc_z, estimation_var_z)
+        return loss_per_batch_sum, detection_loss_sum, (estimation_loc_xy, estimation_var_xy), (estimation_loc_z, estimation_var_z)
         
     def get_config(self):
         config = super().get_config()

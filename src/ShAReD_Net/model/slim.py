@@ -179,15 +179,6 @@ class PosDecoder(keras.layers.Layer):
         
         self.self_ShAReD_2 = layer_base.SelfShAReD(dense_blocks_count = self.dense_blocks_count, dense_filter_count = self.dense_filter_count)
         
-        self.conv = keras.layers.Convolution2D(res_shape[-1],
-                                             kernel_size=3,
-                                             padding='SAME',
-                                             activation=None,
-                                             kernel_initializer=tf.initializers.glorot_normal(),
-                                             bias_initializer=tf.initializers.glorot_uniform(),
-                                             kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
-                                             dtype=self.dtype,
-                                             )
         
         self.compress_output = keras.layers.Convolution2D(2,
                                              kernel_size=1,
@@ -214,10 +205,8 @@ class PosDecoder(keras.layers.Layer):
         stage_res, stage_shc = self.stage([att_res_1, att_shc_1], training = training)
         scale_res = self.scale2_res(stage_res, size_2)
         scale_shc = self.scale2_shc(stage_shc, size_2)
-        
-        scale_res_max = activation_base.discret_sigmoid(self.conv(scale_res), training = training)
-        
-        att_res_2, att_shc_2 = self.self_ShAReD_2([scale_res_max, scale_shc], training = training)
+                
+        att_res_2, att_shc_2 = self.self_ShAReD_2([scale_res, scale_shc], training = training)
         
         concat = tf.concat([att_res_2, att_shc_2], axis = -1)
         
@@ -267,29 +256,42 @@ class PoseDecoder(keras.layers.Layer):
                                              )
         
         self.pos_dep1 = PositionDependency()
-        
-        self.pos_dep2 = PositionDependency()
-        
+                
         super().build(input_shape)
 
     @tf.function(experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         
+        #inputs = tf.debugging.check_numerics(inputs, "rois are invalid")
+        
         att_res_1, att_shc_1 = self.self_ShAReD_1([inputs, inputs], training = training)
+        
+        #att_res_1 = tf.debugging.check_numerics(att_res_1, "pose decoder shared 1 res is invalid")
+        #att_shc_1 = tf.debugging.check_numerics(att_shc_1, "pose decoder shared 1 shc is invalid")
         
         stage_res, stage_shc = self.stage([att_res_1, att_shc_1], training = training)
         
+        #stage_res = tf.debugging.check_numerics(stage_res, "pose decoder stage_res is invalid")
+        #stage_shc = tf.debugging.check_numerics(stage_shc, "pose decoder stage_res is invalid")
+        
         stage_compressed = self.compress_feature(stage_res)
+        
+        #stage_compressed = tf.debugging.check_numerics(stage_compressed, "pose decoder stage_compressed is invalid")
         
         pos_dep1 = self.pos_dep1(stage_compressed)
         
+        #pos_dep1 = tf.debugging.check_numerics(pos_dep1, "pose decoder pos_dep1 is invalid")
+        
         att_res_2, att_shc_2 = self.self_ShAReD_2([pos_dep1, stage_shc], training = training)
         
-        pos_dep2 = self.pos_dep2(att_res_2)
-        
-        concat = tf.concat([pos_dep2, att_shc_2], axis = -1)
+        #att_res_2 = tf.debugging.check_numerics(att_res_2, "pose decoder shared 2 res is invalid")
+        #att_shc_2 = tf.debugging.check_numerics(att_shc_2, "pose decoder shared 2 res is invalid")
+                
+        concat = tf.concat([att_res_2, att_shc_2], axis = -1)
         
         out = self.compress_output(concat)
+        
+        #out = tf.debugging.check_numerics(out, "pose decoder out is invalid")
         return out
         
     def get_config(self):
@@ -304,7 +306,7 @@ class  PositionDependency(keras.layers.Layer):
     def build(self, input_shape):
         print(self.name,input_shape)
         self.original_shape = input_shape
-        self.compress = keras.layers.Convolution2D(10,
+        self.compress = keras.layers.Convolution2D(5,
                                             kernel_size=3,
                                             strides=3,
                                             padding='VALID',
@@ -317,7 +319,7 @@ class  PositionDependency(keras.layers.Layer):
                 
         self.flatt = tf.keras.layers.Flatten()
         
-        self.combine = tf.keras.layers.Dense(input_shape[1] * input_shape[2] * 5, activation=tf.nn.relu, kernel_initializer=tf.initializers.he_normal())
+        self.combine = tf.keras.layers.Dense(input_shape[1] * input_shape[2] * 3, activation=tf.nn.relu, kernel_initializer=tf.initializers.he_normal())
 
         super().build(input_shape)
 
@@ -328,7 +330,7 @@ class  PositionDependency(keras.layers.Layer):
         combined = self.combine(self.flatt(compressed))
         
         
-        poss_dep = tf.reshape(combined, [-1,self.original_shape[1],self.original_shape[2],5])
+        poss_dep = tf.reshape(combined, [-1,self.original_shape[1],self.original_shape[2],3])
         
         return tf.concat([poss_dep,inputs],axis = -1)
         

@@ -53,13 +53,13 @@ def main():
     
     train(400, get_train_model, dataset, dist_strat, batch_size = 16, callbacks = step_callbacks)
 
-def print_step(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads_vars):
+def print_step(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads):
     tf.print("Step:", step)
     
-def print_loss(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads_vars):
+def print_loss(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads):
     tf.print("Loss:", loss)
     
-def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads_vars):
+def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_model, grads):
     prob_maps = tf.unstack(train_model.representation, axis=-1)
     for prob_map_batch in prob_maps:
         prob_map_batch = heatmap_2d.feature_to_location_propability_map(prob_map_batch)
@@ -101,7 +101,7 @@ def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = s
     
     with dist_strat.scope():
         
-        optimizer1 = tf.keras.optimizers.Nadam(learning_rate = config.training.learning_rate.detect, epsilon=0.001)
+        optimizer1 = tf.keras.optimizers.Nadam(learning_rate = config.training.learning_rate, epsilon=0.001)
         
         if callbacks.create_model:
             train_model = callbacks.create_model()
