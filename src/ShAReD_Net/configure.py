@@ -32,7 +32,7 @@ config.training.learning_rate = 0.001
 config.training.batch_size = 4
 config.training.regularization_rate = 0.001
 
-config.training.weighting.detection = 150
+config.training.weighting.detection = 1000
 config.training.weighting.xy_loc = 1
 config.training.weighting.xy_var = 0.1
 config.training.weighting.z_loc = 100
