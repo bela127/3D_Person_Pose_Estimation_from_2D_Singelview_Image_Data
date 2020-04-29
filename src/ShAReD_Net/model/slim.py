@@ -139,19 +139,19 @@ class Encoder(keras.layers.Layer):
         size_8 = tf.cast(size_1/8, dtype=tf.int32)
         
         out1_res, out1_shc = self.stage1([image,image],training = training)
-        scale1_res = self.scale2_res(out1_res, size_1)
+        scale1_res = self.scale2_res(out1_res, size_2)
         scale1_shc = self.scale2_shc(out1_shc, size_2)
         
         out2_res, out2_shc = self.stage2([scale1_res, scale1_shc],training = training)
-        scale2_res = self.scale4_res(out2_res, size_2)
+        scale2_res = self.scale4_res(out2_res, size_4)
         scale2_shc = self.scale4_shc(out2_shc, size_4)
         
         out3_res, out3_shc = self.stage3([scale2_res, scale2_shc],training = training)
-        scale3_res = self.scale8_res(out3_res, size_4)
-        scale3_shc = self.scale8_shc(out3_shc, size_4)
+        scale3_res = self.scale8_res(out3_res, size_8)
+        scale3_shc = self.scale8_shc(out3_shc, size_8)
 
         pos_decoder = [scale3_res, scale3_shc]
-        pose_decoder = tf.concat([out3_res, out2_shc], axis = -1)
+        pose_decoder = tf.concat([out3_res, out3_shc], axis = -1)
         
         return pose_decoder, pos_decoder
         
@@ -255,7 +255,7 @@ class PoseDecoder(keras.layers.Layer):
                                              dtype=self.dtype,
                                              )
         
-        self.pos_dep1 = PositionDependency()
+        #self.pos_dep1 = PositionDependency()
                 
         super().build(input_shape)
 
@@ -278,11 +278,11 @@ class PoseDecoder(keras.layers.Layer):
         
         #stage_compressed = tf.debugging.check_numerics(stage_compressed, "pose decoder stage_compressed is invalid")
         
-        pos_dep1 = self.pos_dep1(stage_compressed)
+        #pos_dep1 = self.pos_dep1(stage_compressed)
         
         #pos_dep1 = tf.debugging.check_numerics(pos_dep1, "pose decoder pos_dep1 is invalid")
         
-        att_res_2, att_shc_2 = self.self_ShAReD_2([pos_dep1, stage_shc], training = training)
+        att_res_2, att_shc_2 = self.self_ShAReD_2([stage_compressed, stage_shc], training = training)
         
         #att_res_2 = tf.debugging.check_numerics(att_res_2, "pose decoder shared 2 res is invalid")
         #att_shc_2 = tf.debugging.check_numerics(att_shc_2, "pose decoder shared 2 res is invalid")
@@ -319,7 +319,7 @@ class  PositionDependency(keras.layers.Layer):
                 
         self.flatt = tf.keras.layers.Flatten()
         
-        self.combine = tf.keras.layers.Dense(input_shape[1] * input_shape[2] * 3, activation=tf.nn.relu, kernel_initializer=tf.initializers.he_normal())
+        self.combine = tf.keras.layers.Dense(input_shape[1] * input_shape[2] * 3, activation=tf.nn.tanh, kernel_initializer=tf.initializers.glorot_normal())
 
         super().build(input_shape)
 

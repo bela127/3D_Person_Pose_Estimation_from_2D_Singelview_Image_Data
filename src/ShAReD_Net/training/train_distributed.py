@@ -16,16 +16,23 @@ def standart_callbacks():
     callbacks = Dict()
     callbacks.every_steps[1] = print_step
     callbacks.every_steps[10] = print_loss
-        #TODO split model in output and loss
     callbacks.at_step = {}
-
+    
+    callbacks.every_eval_steps = {}
+    
     callbacks.make_batches = None
     callbacks.train_init = None
     
-    callbacks.create_dataset = None
+    callbacks.create_train_dataset = None
+    callbacks.create_test_dataset = None
+    
     callbacks.create_ckpt = None
     callbacks.create_model = None
+    
     callbacks.create_loss = None
+    callbacks.create_eval_loss = None
+    
+    callbacks.create_opt = None
     
     callbacks.input_pre = None
     callbacks.loss_pre = None
@@ -71,37 +78,57 @@ def show_plot(dev, step, batch, output, loss, extra_loss, ckpt, manager, train_m
             plt.show()
             
 def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = standart_callbacks()):
-    writer = tf.summary.create_file_writer(config.tensorboard.path)
+    writer_train = tf.summary.create_file_writer(config.tensorboard.path+"/train")
+    writer_eval = tf.summary.create_file_writer(config.tensorboard.path+"/eval")
     
     if dist_strat is None:
         #singel_dev_train.train(steps = steps, get_train_model = get_train_model, dataset = dataset, batch_size = batch_size, learning_rate = learning_rate, step_callbacks = step_callbacks)
         print("changed interface so None is not supported use a starategie")
         return
     
-    if callbacks.create_dataset:
+    if callbacks.create_train_dataset:
         per_replica_batch_size = batch_size // dist_strat.num_replicas_in_sync
-        dataset = callbacks.create_dataset(per_replica_batch_size)
+        dataset = callbacks.create_train_dataset(per_replica_batch_size)
     else:
-        print("No dataset, set create_dataset in the callbacks")
+        print("No train dataset, set create_train_dataset in the callbacks")
         return
     
-    dataset = dataset.repeat(-1)
+    if callbacks.create_test_dataset:
+        per_replica_batch_size = batch_size // dist_strat.num_replicas_in_sync
+        test_dataset = callbacks.create_test_dataset(per_replica_batch_size)
+    else:
+        test_dataset = dataset
     
-    if callbacks.make_batches:
+    dataset = dataset.repeat(-1)
+    test_dataset = test_dataset.repeat(-1)
+    
+    def make_dist_dataset(dataset, steps = None):
         def dataset_fn(input_context):
             per_replica_batch_size = input_context.get_per_replica_batch_size(batch_size)
             d = callbacks.make_batches(dataset, per_replica_batch_size)
-            return d.shard(input_context.num_input_pipelines, input_context.input_pipeline_id).take(steps)
-        dist_dataset = dist_strat.experimental_distribute_datasets_from_function(dataset_fn)
+            if steps is None:
+                return d.shard(input_context.num_input_pipelines, input_context.input_pipeline_id).take(1)
+            else:
+                return d.shard(input_context.num_input_pipelines, input_context.input_pipeline_id).take(steps)
+        return dataset_fn
+    
+    if callbacks.make_batches:
+        dist_dataset = dist_strat.experimental_distribute_datasets_from_function(make_dist_dataset(dataset, steps))
+        dist_test_dataset = dist_strat.experimental_distribute_datasets_from_function(make_dist_dataset(test_dataset))
     else:
         dataset = dataset.batch(batch_size).take(steps)
+        test_dataset = test_dataset.batch(batch_size).take(1)
         dist_dataset = dist_strat.experimental_distribute_dataset(dataset)
+        dist_test_dataset = dist_strat.experimental_distribute_dataset(test_dataset)
     
     step = tf.Variable(0, trainable=False, dtype = tf.int32)
     
     with dist_strat.scope():
         
-        optimizer1 = tf.keras.optimizers.Nadam(learning_rate = config.training.learning_rate, epsilon=0.001)
+        if callbacks.create_opt:
+            optimizer1 = callbacks.create_opt()
+        else:
+            optimizer1 = tf.keras.optimizers.Nadam(learning_rate = config.training.learning_rate, epsilon=0.001)
         
         if callbacks.create_model:
             train_model = callbacks.create_model()
@@ -115,8 +142,13 @@ def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = s
             print("No train_loss, set create_loss in the callbacks")
             return
         
+        if callbacks.create_eval_loss:
+            eval_loss = callbacks.create_eval_loss()
+        else:
+            eval_loss = callbacks.create_loss()
+        
         if callbacks.train_init:
-            callbacks.train_init(train_model, dist_dataset)
+            callbacks.train_init(train_model, train_loss, eval_loss, dist_dataset, dist_test_dataset)
     
         if callbacks.create_ckpt:
             ckpt, manager = callbacks.create_ckpt(step, optimizer1, train_model, train_loss)
@@ -158,10 +190,10 @@ def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = s
         agg_loss1 = loss_per_input1 + extra_loss
 
         dev = tf.distribute.get_replica_context().devices
+        
         print(f"tracing gradients on {dev}")
         gradients1 = optimizer1.get_gradients(agg_loss1, trainable_vars)
 
-        #tf.print("gradients",[(var.name,grad) for var,grad in zip(trainable_vars,gradients)])
         non_nan_gradients1 = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients1]
         capped_gradients1, norm = tf.clip_by_global_norm(non_nan_gradients1, 10.)
         
@@ -180,17 +212,53 @@ def train(steps, dist_strat, batch_size = 8, learning_rate = 0.01, callbacks = s
     def train_step(batch): 
         dist_strat.experimental_run_v2(singel_device_train_step, args=(batch,))
     
+    @tf.function(experimental_relax_shapes=True)
+    def singel_device_eval_step(batch, step_callback):
+        
+        if callbacks.input_pre:
+            inputs = callbacks.input_pre(batch)
+        else:
+            inputs = batch
+            
+        output = train_model(inputs)
+        
+        if callbacks.loss_pre:
+            loss_input = callbacks.loss_pre(output, batch)
+        else:
+            loss_input = output
+            
+        loss = train_loss(loss_input)
+        loss_eval = eval_loss(loss_input)
+        
+        dev = tf.distribute.get_replica_context().devices
+        
+        step_callback(dev, step, batch, output, loss, loss_eval)
+        
+        
+    @tf.function
+    def eval_step():
+        for callback_step, step_callback in callbacks.every_eval_steps.items():
+            if callback_step > 0 and step % callback_step == 0:
+                #TODO FIX itterating over dataset with only one element, dist_dataset dont support singel element fetching
+                for batch in dist_test_dataset:
+                    dist_strat.experimental_run_v2(singel_device_eval_step, args=(batch, step_callback))
+    
     @tf.function
     def train_loop():  
         with dist_strat.scope():
             for batch in dist_dataset:
                 step.assign_add(1)
-                tf.summary.experimental.set_step(tf.cast(step,tf.int64))
-                train_step(batch)
-                writer.flush()
+                with writer_train.as_default():
+                    tf.summary.experimental.set_step(tf.cast(step,tf.int64))
+                    train_step(batch)
+                    writer_train.flush()
+                
+                with writer_eval.as_default():
+                    tf.summary.experimental.set_step(tf.cast(step,tf.int64))
+                    #eval_step()
+                    writer_eval.flush()
         
-    with writer.as_default():
-        train_loop()
+    train_loop()
 
 if __name__ == "__main__":
     main()

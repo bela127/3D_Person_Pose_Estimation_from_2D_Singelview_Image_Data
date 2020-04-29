@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 from ShAReD_Net.configure import config
+import ShAReD_Net.model.modules.slim as slim_modules
 
 # Model dataset params
 cut_steps = config.model.data.cut_steps
@@ -25,7 +26,8 @@ def create_data_at_cutdist_dataset(data_split, cut_dist):
     imgcut_poses_poss_ds = create_imgcut_poses_poss_dataset(img_poses_poss_ds, cut_dist)
     imgcut_imgposes_imgposs_ds = create_imgcut_imgposes_imgposs_dataset(imgcut_poses_poss_ds)
     imgcut_cutposes_cutposs_ds = create_imgcut_cutposes_cutposs_dataset(imgcut_imgposes_imgposs_ds, cut_dist)
-    filtered_cutposes_cutposs_ds = create_filtered_cutposes_cutposs_dataset(imgcut_cutposes_cutposs_ds)
+    crop_ds = create_croped_dataset(imgcut_cutposes_cutposs_ds)
+    filtered_cutposes_cutposs_ds = create_filtered_cutposes_cutposs_dataset(crop_ds)
     imgcut_cutposes_cutposs_heatmap_indices_ds = create_imgcut_cutposes_cutposs_heatmap_indices_dataset(filtered_cutposes_cutposs_ds, cut_dist)
     imgcut_cutposes_cutposs_heatmap_indices_weights_ds = create_imgcut_cutposes_cutposs_heatmap_indices_weights_dataset(imgcut_cutposes_cutposs_heatmap_indices_ds)
     imgcut_relposes_roiindices_heatmap_indices_weights_ds = create_imgcut_relposes_roiindices_heatmap_indices_weights_dataset(imgcut_cutposes_cutposs_heatmap_indices_weights_ds, cut_dist) 
@@ -153,6 +155,68 @@ def create_imgcut_cutposes_cutposs_dataset(imgcut_imgposes_imgposs_ds, cut_dist)
     return imgcut_cutposes_cutposs_ds
 
 #----------------------------------------------------------
+
+
+image_crop_size = np.asarray(roi_size) * downsample_pose * 3 + 1
+roi_extractor = slim_modules.Roi_Extractor(roi_size=image_crop_size)
+
+def random_crop(imgcut, poses_cut, poss_cut):
+    imgcut_batched = imgcut[None,...]
+    offset_size = tf.cast(min(image_crop_size), tf.float32) / 3
+    offsets = tf.random.uniform(tf.shape(poss_cut), minval=-offset_size, maxval=offset_size, dtype=tf.dtypes.float32)
+
+    cut_index = tf.cast(poss_cut + offsets + 0.5, tf.int32)[...,::-1]
+
+    mask = tf.constant([[0, 1, 1]], tf.int32)
+
+    cut_index = cut_index * mask
+
+    pose_imges = roi_extractor([imgcut_batched, cut_index])
+
+    poses = tf.repeat(poses_cut[None,...], tf.shape(cut_index)[0], axis=0)
+    poss = tf.repeat(poss_cut[None,...], tf.shape(cut_index)[0], axis=0)
+
+    center = tf.constant([[image_crop_size[1]//2, image_crop_size[0]//2, 0]], tf.float32)
+    cut_pos = tf.cast(cut_index[...,::-1], tf.float32) - center
+    cut_pos_poses = cut_pos[:,None,None,:]
+    cut_pos_poss = cut_pos[:,None,:]
+
+    new_poses = poses - cut_pos_poses
+    new_poss = poss - cut_pos_poss
+
+
+    dataset = tf.data.Dataset.from_tensor_slices((pose_imges, new_poses, new_poss))
+
+    return dataset
+
+def filter_poss_and_pose_crop_size(image, poses, poss):
+    image_size = tf.cast(tf.shape(image)[0:2], poss.dtype)
+    
+    indexes = tf.where(tf.math.logical_and(
+        tf.math.logical_and(poss[:,0] >= 0, poss[:,0] < image_size[1] - 1),
+        tf.math.logical_and(poss[:,1] >= 0, poss[:,1] < image_size[0] - 1)))
+    filtered_poss = tf.gather_nd(poss, indexes)
+    filtered_poses = tf.gather_nd(poses, indexes)
+
+    # for each keypoint filter person not fully in image
+    for k in range(15):
+        indexes = tf.where(tf.math.logical_and(
+            tf.math.logical_and(filtered_poses[:,k,0] >= 0, filtered_poses[:,k,0] < image_size[1] - 1),
+            tf.math.logical_and(filtered_poses[:,k,1] >= 0, filtered_poses[:,k,1] < image_size[0] - 1)))
+        
+        filtered_poss = tf.gather_nd(filtered_poss, indexes)
+        filtered_poses = tf.gather_nd(filtered_poses, indexes)
+
+    return image, filtered_poses, filtered_poss 
+
+## DATASET
+def create_croped_dataset(dataset):
+    croped_ds = dataset.flat_map(random_crop)
+    filtered_ds = croped_ds.map(filter_poss_and_pose_crop_size)
+    return filtered_ds
+
+#----------------------------------------------------------
+
 
 def filter_cutposes_cutposs(img, cutposes ,cutposs):
     length = tf.shape(cutposs)[0]

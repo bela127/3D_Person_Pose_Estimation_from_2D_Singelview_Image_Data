@@ -63,6 +63,17 @@ def pose_path_to_poses(pose_path):
     raw_poses = np.load(pose_path, allow_pickle=True)
     poses = np.empty([len(raw_poses),15,3], dtype=np.float32)
     for i, pose in enumerate(raw_poses):
+        
+        
+        ocl_joint_count = 0
+        for joint in pose:
+            if joint.occ:
+                ocl_joint_count += 1
+                
+        #dont use poses with more then 70% oclusion
+        if ocl_joint_count / len(pose) > 0.7:
+            continue
+        
         poses[i,0,0] = pose[1].x3d
         poses[i,0,1] = pose[1].y3d
         poses[i,0,2] = pose[1].z3d

@@ -249,7 +249,13 @@ class LossAggregation(keras.layers.Layer):
     def build(self, input_shape):
         print(self.name,input_shape)
         
-        self.multi_loss_layer = slim_loss.MultiLossLayer()
+        #self.multi_loss_layer = slim_loss.MultiLossLayer()
+        
+        self.lc_d = LossClipping(name = "detection")
+        self.lc_loc_xy = LossClipping(name = "loc_xy")
+        self.lc_loc_z = LossClipping(name = "loc_z")
+        self.lc_var_xy = LossClipping(name = "var_xy")
+        self.lc_var_z = LossClipping(name = "var_z")
         
         super().build(input_shape)
 
@@ -257,36 +263,43 @@ class LossAggregation(keras.layers.Layer):
     def call(self, inputs):
         detection_loss, (loss_pos_xy, loss_var_xy), (loss_pos_z, loss_var_z) = inputs
         
-        detection_loss_sum = tf.reduce_sum(detection_loss)
+        detection_loss = self.lc_d(detection_loss)
         
-        detection_loss_sum = tf.where(tf.math.is_nan(detection_loss_sum), tf.zeros_like(detection_loss_sum), detection_loss_sum)
-        detection_loss_sum = tf.where(tf.math.is_inf(detection_loss_sum), tf.float16.max*tf.ones_like(detection_loss_sum), detection_loss_sum)
-        detection_loss_sum = tf.debugging.check_numerics(detection_loss_sum, "detection loss is invalid")
+        detection_loss_sum = tf.reduce_sum(detection_loss) * config.training.weighting.detection
         
+        detection_loss_sum = tf.debugging.check_numerics(detection_loss_sum, "detection loss sum is invalid")
+        
+        
+        loss_pos_xy = self.lc_loc_xy(loss_pos_xy)
+        
+        loss_pos_z = self.lc_loc_z(loss_pos_z)
        
-        estimation_loc_xy = tf.reduce_sum(loss_pos_xy)
-        estimation_loc_z = tf.reduce_sum(loss_pos_z)
+        estimation_loc_xy = tf.reduce_sum(loss_pos_xy) * config.training.weighting.xy_loc
+        estimation_loc_z = tf.reduce_sum(loss_pos_z) * config.training.weighting.z_loc       
         
         
-        estimation_var_xy = tf.reduce_sum(loss_var_xy)
-        estimation_var_z = tf.reduce_sum(loss_var_z)
+        loss_var_xy = self.lc_var_xy(loss_var_xy)
+        
+        loss_var_z = self.lc_var_z(loss_var_z)
+        
+        estimation_var_xy = tf.reduce_sum(loss_var_xy) * config.training.weighting.xy_var
+        estimation_var_z = tf.reduce_sum(loss_var_z) * config.training.weighting.z_var
+
         
         estimation_loss_xy = estimation_loc_xy + estimation_var_xy
         
-        estimation_loss_xy = tf.where(tf.math.is_nan(estimation_loss_xy), tf.zeros_like(estimation_loss_xy), estimation_loss_xy)
-        estimation_loss_xy = tf.where(tf.math.is_inf(estimation_loss_xy), tf.float16.max*tf.ones_like(estimation_loss_xy), estimation_loss_xy)
         estimation_loss_xy = tf.debugging.check_numerics(estimation_loss_xy, "estimation xy loss is invalid")
+        
         
         estimation_loss_z = estimation_loc_z + estimation_var_z
         
-        estimation_loss_z = tf.where(tf.math.is_nan(estimation_loss_z), tf.zeros_like(estimation_loss_z), estimation_loss_z)
-        estimation_loss_z = tf.where(tf.math.is_inf(estimation_loss_z), tf.float16.max*tf.ones_like(estimation_loss_z), estimation_loss_z)
+
         estimation_loss_z = tf.debugging.check_numerics(estimation_loss_z, "estimation z loss is invalid")
-                
-        loss_per_batch_sum = self.multi_loss_layer([detection_loss_sum, estimation_loss_xy, estimation_loss_z])
         
-        loss_per_batch_sum = tf.where(tf.math.is_nan(loss_per_batch_sum), tf.zeros_like(loss_per_batch_sum), loss_per_batch_sum)
-        loss_per_batch_sum = tf.where(tf.math.is_inf(loss_per_batch_sum), tf.float16.max*tf.ones_like(loss_per_batch_sum), loss_per_batch_sum)
+        
+        loss_per_batch_sum = detection_loss_sum +estimation_loss_xy +estimation_loss_z
+        
+
         loss_per_batch_sum = tf.debugging.check_numerics(loss_per_batch_sum, "batch loss is invalid")
 
         
@@ -295,3 +308,36 @@ class LossAggregation(keras.layers.Layer):
     def get_config(self):
         config = super().get_config()
         return config
+
+class LossClipping(keras.layers.Layer):
+    def __init__(self, name = "LossClipping", **kwargs):
+        super().__init__(name = name, **kwargs)
+
+    
+    def build(self, input_shape):
+        print(self.name,input_shape)
+                
+        super().build(input_shape)
+        
+
+    @tf.function(experimental_relax_shapes=True)
+    def call(self, inputs):
+        loss = inputs
+        
+        @tf.custom_gradient
+        def clip(loss):
+        
+            loss = tf.where(tf.math.is_nan(loss), tf.zeros_like(loss), loss)
+            loss = tf.where(tf.math.is_inf(loss), tf.float16.max*tf.ones_like(loss), loss)
+            loss = tf.debugging.check_numerics(loss, f"{self.name} loss is invalid")
+            
+            def grad(dy):
+                return dy
+            
+            return loss, grad
+        
+        return clip(loss)
+        
+    def get_config(self):
+        config = super().get_config()
+        return config 
