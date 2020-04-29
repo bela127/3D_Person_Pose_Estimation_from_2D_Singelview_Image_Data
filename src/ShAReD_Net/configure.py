@@ -28,12 +28,12 @@ config.model.output.keypoints = 15
 config.checkpoint.path = "/home/inferics/Docker/volumes/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/checkpoints"
 config.tensorboard.path = "/home/inferics/Docker/volumes/3D_Person_Pose_Estimation_from_2D_Singelview_Image_Data/logdir"
 
-config.training.learning_rate = 0.001
+config.training.learning_rate = 0.0003
 config.training.batch_size = 4
 config.training.regularization_rate = 0.001
 
-config.training.weighting.detection = 1000
+config.training.weighting.detection = 500
 config.training.weighting.xy_loc = 1
-config.training.weighting.xy_var = 0.1
+config.training.weighting.xy_var = 1
 config.training.weighting.z_loc = 100
 config.training.weighting.z_var = 100
