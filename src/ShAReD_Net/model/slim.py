@@ -20,7 +20,7 @@ class ShAReDHourGlass(keras.layers.Layer):
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
-        self.big_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared1")
+        self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared1")
         
         self.big_normal = base_layer.Scale(name="big_normal")
         
@@ -44,7 +44,7 @@ class ShAReDHourGlass(keras.layers.Layer):
 
         self.normal_big = base_layer.Scale(name="normal_big")
 
-        self.big_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared3")
+        self.big_shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared3")
         super().build(input_shape)
     
     @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)

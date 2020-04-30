@@ -34,6 +34,6 @@ config.training.regularization_rate = 0.001
 
 config.training.weighting.detection = 500
 config.training.weighting.xy_loc = 1
-config.training.weighting.xy_var = 1
+config.training.weighting.xy_var = 0.1
 config.training.weighting.z_loc = 100
-config.training.weighting.z_var = 100
+config.training.weighting.z_var = 10
