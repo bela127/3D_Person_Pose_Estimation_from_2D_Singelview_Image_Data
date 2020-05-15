@@ -42,10 +42,10 @@ class Roi_Extractor(keras.layers.Layer):
             
             cut = encoded_poses[batch, slide_l:slide_r, slide_u:slide_d, :]
 
-            overlap_l = tf.maximum(slide_l - roi_l, 0)
-            overlap_u = tf.maximum(slide_u - roi_u, 0)
-            overlap_r = tf.maximum(roi_r - slide_r, 0)
-            overlap_d = tf.maximum(roi_d - slide_d, 0)
+            overlap_l = tf.minimum(tf.maximum(slide_l - roi_l, 0),self.roi_size[0])
+            overlap_u = tf.minimum(tf.maximum(slide_u - roi_u, 0),self.roi_size[1])
+            overlap_r = tf.minimum(tf.maximum(roi_r - slide_r, 0),self.roi_size[0])
+            overlap_d = tf.minimum(tf.maximum(roi_d - slide_d, 0),self.roi_size[1])
             
             cut = tf.pad(cut, [[overlap_l, overlap_r], [overlap_u, overlap_d], [0,0]])
 

@@ -20,8 +20,8 @@ cam_intr_f = cam_transform[0,0]
 
 
 ## DATASET
-def create_data_at_cutdist_dataset(data_split, cut_dist):
-    img_poses_ds = config.dataset.create_dataset(data_split)
+def create_data_at_cutdist_dataset(data_split, cut_dist, shuffle = True):
+    img_poses_ds = config.dataset.create_dataset(data_split, shuffle)
     img_poses_poss_ds = create_img_poses_poss_dataset(img_poses_ds)
     imgcut_poses_poss_ds = create_imgcut_poses_poss_dataset(img_poses_poss_ds, cut_dist)
     imgcut_imgposes_imgposs_ds = create_imgcut_imgposes_imgposs_dataset(imgcut_poses_poss_ds)
@@ -33,7 +33,7 @@ def create_data_at_cutdist_dataset(data_split, cut_dist):
     imgcut_relposes_roiindices_heatmap_indices_weights_ds = create_imgcut_relposes_roiindices_heatmap_indices_weights_dataset(imgcut_cutposes_cutposs_heatmap_indices_weights_ds, cut_dist) 
     imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds = create_imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_ds)
     
-    batchable_ds = create_batchable_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds)
+    batchable_ds = create_batchable_dataset(imgcut_relposes_roiindices_heatmap_indices_weights_poseindexes_ds, cut_dist)
     return batchable_ds
 
 #----------------------------------------------------------
@@ -351,11 +351,13 @@ def make_ragged_annotation(anno):
     expanded = tf.expand_dims(anno, 0)
     return tf.RaggedTensor.from_tensor(expanded)
 
-def prepare_batching(img, rel_poses, roi_indices, heatmap, indices, weights, pose_indexes):
-    roi_indexes = make_ragged_annotation(roi_indices)
-    rel_pose = make_ragged_annotation(rel_poses)
-    pose_indexes = make_ragged_annotation(pose_indexes)
-    return img, (heatmap, weights), roi_indexes, (rel_pose, pose_indexes)
+def prepare_batching(cut_dist):
+    def batching(img, rel_poses, roi_indices, heatmap, indices, weights, pose_indexes):
+        roi_indexes = make_ragged_annotation(roi_indices)
+        rel_pose = make_ragged_annotation(rel_poses)
+        pose_indexes = make_ragged_annotation(pose_indexes)
+        return img, (heatmap, weights), roi_indexes, (rel_pose, pose_indexes), cut_dist
+    return batching
 
 
 def squeeze_annotation(anno):
@@ -368,8 +370,8 @@ def squeeze_batch(img_b, poss_b, poses_b, pos_b, pose_b):
     return img_b, poses_b, poss_b, pos_b, pose_b
 
 ## DATASET
-def create_batchable_dataset(dataset):
-    batchable_ds = dataset.map(prepare_batching)
+def create_batchable_dataset(dataset, cut_dist):
+    batchable_ds = dataset.map(prepare_batching(cut_dist))
     return batchable_ds
 
 #----------------------------------------------------------
@@ -382,16 +384,16 @@ def create_cutdist_dataset():
 
 #----------------------------------------------------------
 
-def interleav_dataset(data_split):
+def interleav_dataset(data_split, shuffle = True):
     def interleav(cut_dist):
-        return create_data_at_cutdist_dataset(data_split, cut_dist)
+        return create_data_at_cutdist_dataset(data_split, cut_dist, shuffle)
     return interleav
     
 
 ## DATASET
-def create_dataset(data_split, batch_size):
+def create_dataset(data_split, batch_size, shuffle = True):
     cutdist_ds = create_cutdist_dataset()
-    interleaved_multiscale_ds = cutdist_ds.interleave(interleav_dataset(data_split), block_length=batch_size)
+    interleaved_multiscale_ds = cutdist_ds.interleave(interleav_dataset(data_split, shuffle), block_length=batch_size)
     return interleaved_multiscale_ds
 
 #----------------------------------------------------------

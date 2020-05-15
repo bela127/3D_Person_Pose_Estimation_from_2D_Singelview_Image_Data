@@ -130,7 +130,7 @@ class PoseLossZ(tf.keras.layers.Layer):
                 
         loss_z_sum = tf.reduce_sum(loss_loc) + 0.001
         loss_z_batch = tf.reduce_sum(loss_loc, axis=[0])
-        loss_z_factor = loss_z_batch*self.keypoints/loss_z_sum
+        loss_z_factor = loss_z_batch*self.keypoints/tf.stop_gradient(loss_z_sum)
         
         hard_kp_loss_z = loss_loc*loss_z_factor
         return hard_kp_loss_z, loss_var
@@ -171,7 +171,8 @@ class PoseLossXY(tf.keras.layers.Layer):
                 
         loss_xy_sum = tf.reduce_sum(loss_loc) + 0.001
         loss_xy_batch = tf.reduce_sum(loss_loc, axis=[0,2])
-        loss_xy_factor = loss_xy_batch*self.keypoints/loss_xy_sum
+        loss_xy_factor = loss_xy_batch*self.keypoints/tf.stop_gradient(loss_xy_sum)
+        
         
         hard_kp_loss_xy = loss_loc*loss_xy_factor[...,None]
         return hard_kp_loss_xy, loss_var

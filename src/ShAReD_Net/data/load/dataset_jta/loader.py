@@ -26,14 +26,16 @@ import ShAReD_Net.data.load.dataset_jta.pose as pose
 sys.modules['joint'] = joint
 sys.modules['pose'] = pose
 
-def create_dataset(data_split):
+def create_dataset(data_split, shuffle = True):
     img_root = IMG_PATH
     anno_root = ANNO_PATH
-    return create_img_poses_dataset(img_root, anno_root, data_split)
+    return create_img_poses_dataset(img_root, anno_root, data_split, shuffle)
 
-def create_img_poses_dataset(img_root, anno_root, data_split):
+def create_img_poses_dataset(img_root, anno_root, data_split, shuffle):
     anno_root = tf.constant(anno_root)
     file_ds = create_file_dataset(img_root, data_split)
+    if shuffle:
+        file_ds = file_ds.shuffle(10000)
     img_poses_ds = file_ds.map(img_path_to_img_and_poses(anno_root),
                          num_parallel_calls=tf.data.experimental.AUTOTUNE)
     return img_poses_ds

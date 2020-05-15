@@ -12,7 +12,7 @@ from ShAReD_Net.configure import config
 
 
 class SlimTrainingModel(keras.layers.Layer):
-    def __init__(self, low_level_extractor, encoder, pos_decoder, pose_decoder, name = "SlimInferenzModel", **kwargs):
+    def __init__(self, low_level_extractor, encoder, pos_decoder, pose_decoder, name = "SlimTrainingModel", **kwargs):
         super().__init__(name = name, **kwargs)
         self.low_level_extractor = low_level_extractor
         self.encoder = encoder
@@ -41,26 +41,15 @@ class SlimTrainingModel(keras.layers.Layer):
         training=True
         
         low_level_feature = self.low_level_extractor(image)
-        
-        #low_level_feature = tf.debugging.check_numerics(low_level_feature, "low_level_feature are invalid")
-    
+            
         encoded_pose, encoded_pos = self.encoder(low_level_feature, training = training)
-        
-        #encoded_pose = tf.debugging.check_numerics(encoded_pose, "encoded_pose is invalid")
-        #encoded_pos_res = tf.debugging.check_numerics(encoded_pos[0], "encoded_pos is invalid")
-        #encoded_pos_shc = tf.debugging.check_numerics(encoded_pos[1], "encoded_pos is invalid")
-        #encoded_pos = [encoded_pos_res, encoded_pos_shc]
     
         pos_hm = self.pos_decoder(encoded_pos, training = training)
             
         roi_feature = self.roi_extractor([encoded_pose, roi_indexes])
-        
-        #roi_feature = tf.debugging.check_numerics(roi_feature, "pose roi_feature is invalid")
-    
+            
         pose_hm = self.pose_decoder(roi_feature, training = training)
-        
-        #pose_hm = tf.debugging.check_numerics(pose_hm, "pose heatmap is invalid")
-        
+                
         poses_xyz, pose_prob_map_xy, pose_prob_maps_z = self.pose_extractor([pose_hm, pose_indexes])
     
         return poses_xyz, pos_hm, (pose_prob_map_xy, pose_prob_maps_z)
@@ -297,13 +286,17 @@ class LossAggregation(keras.layers.Layer):
         estimation_loss_z = tf.debugging.check_numerics(estimation_loss_z, "estimation z loss is invalid")
         
         
-        loss_per_batch_sum = detection_loss_sum +estimation_loss_xy +estimation_loss_z
+        loss_per_batch_sum = detection_loss_sum +estimation_loss_xy + estimation_loss_z + 0.001
+        loss_sum = tf.stop_gradient(loss_per_batch_sum)
+        
+        loss_per_batch_sum_hard = detection_loss_sum * detection_loss_sum / loss_sum + estimation_loss_xy * estimation_loss_xy / loss_sum + estimation_loss_z * estimation_loss_z / loss_sum
         
 
         loss_per_batch_sum = tf.debugging.check_numerics(loss_per_batch_sum, "batch loss is invalid")
+        loss_per_batch_sum_hard = tf.debugging.check_numerics(loss_per_batch_sum_hard, "hard batch loss is invalid")
 
         
-        return loss_per_batch_sum, detection_loss_sum, (estimation_loc_xy, estimation_var_xy), (estimation_loc_z, estimation_var_z)
+        return loss_per_batch_sum_hard, detection_loss_sum, (estimation_loc_xy, estimation_var_xy), (estimation_loc_z, estimation_var_z)
         
     def get_config(self):
         config = super().get_config()
