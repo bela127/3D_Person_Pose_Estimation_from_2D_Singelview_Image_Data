@@ -77,6 +77,14 @@ target/
 profile_default/
 ipython_config.py
 
+# Tensorflow
+*.pb
+*.trace.json.gz
+events.out.tfevents.*
+*.profile-empty
+checkpoints/
+logdir/
+
 # pyenv
 .python-version
 

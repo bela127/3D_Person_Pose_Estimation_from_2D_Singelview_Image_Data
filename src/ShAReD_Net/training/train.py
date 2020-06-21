@@ -8,7 +8,7 @@ import ShAReD_Net.model.layer.heatmap_2d as heatmap_2d
 import ShAReD_Net.training.loss.base as loss_base
 
 def standart_callbacks():
-    return {1: print_step, 10: print_loss}
+    return {1: print_step, 5: print_loss}
 
 def main():
     keypoints = 15
@@ -20,16 +20,10 @@ def main():
     def get_train_model():
         return loss_base.LossTestTrainingsModel(keypoints = keypoints)
 
-    #dist_strat = tf.distribute.MirroredStrategy()
-    #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.HierarchicalCopyAllReduce())
-    #dist_strat = tf.distribute.MirroredStrategy(cross_device_ops = tf.distribute.ReductionToOneDevice())
-
-    #dist_strat = tf.distribute.OneDeviceStrategy(device="/gpu:0")
-    dist_strat = tf.distribute.OneDeviceStrategy(device="/cpu:0")
     step_callbacks = standart_callbacks()
     step_callbacks[400] = show_plot
     
-    train(400, get_train_model, dataset, dist_strat, batch_size = 16, step_callbacks = step_callbacks)
+    train(400, get_train_model, dataset, batch_size = 16, step_callbacks = step_callbacks)
 
 def print_step(train_model, loss, step):
     tf.print("Step:", step)
@@ -48,56 +42,102 @@ def show_plot(train_model, loss, step):
             plt.imshow(prob_map)
             plt.show()
 
-def train(steps, get_train_model, dataset, dist_strat, batch_size = 8, learning_rate = 0.01, step_callbacks = {1: print_step, 10: print_loss}):
+def train(steps, get_train_model, dataset, batch_size = 8, learning_rate = 0.01, step_callbacks = {1: print_step, 10: print_loss}):
     
     batch_size = tf.cast(batch_size, dtype=tf.int64)
-    with dist_strat.scope():
-        optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate)
-        train_model = get_train_model()
     
-    dataset = dataset.repeat(-1).batch(batch_size)
-    dist_dataset = dist_strat.experimental_distribute_dataset(dataset)
+    optimizer = tf.keras.optimizers.Adam(learning_rate = learning_rate, epsilon=0.01)
+    train_model = get_train_model()
     
-    with dist_strat.scope():
-        init_callback = step_callbacks.get("train_init",None)
-        if init_callback:
-            init_callback(train_model, dist_dataset)
+    input_preprocessing_callback = step_callbacks.get("input_preprocessing",None)
+    batching_callback = step_callbacks.get("batching",None)
+    init_callback = step_callbacks.get("train_init",None)
+    loss_pre_callback = step_callbacks.get("loss_pre",None)
     
-    def train_loop(dist_dataset):
-        step = tf.Variable(0, trainable=False, dtype = tf.int32)
+    dataset = dataset.repeat(-1)
+    
+    if batching_callback:
+        dataset = batching_callback(dataset, batch_size).take(steps)
+    else:
+        dataset = dataset.batch(batch_size).take(steps)
+    
+    
+    step = tf.Variable(0, trainable=False, dtype = tf.int32)  
+    
+    @tf.function(experimental_relax_shapes=True)
+    def train_step(batch):
+        if input_preprocessing_callback:
+            inputs = input_preprocessing_callback(batch)
+            
+        loss = train_model(batch)
+        
+        if loss_pre_callback:
+            loss_per_batch = loss_pre_callback(loss)
+            
+        loss_per_input = loss_per_batch / tf.cast(batch_size, dtype=loss_per_batch.dtype)
+        
+        agg_loss = tf.reduce_sum(train_model.losses) + loss_per_input
+    
+        trainable_vars = train_model.trainable_variables
+        
+        split1 = len(trainable_vars) //6
+        split2 = len(trainable_vars) //4
+        dev_vars_0 = trainable_vars[:split1]
+        dev_vars_1 = trainable_vars[split1:split2]
+        dev_vars_2 = trainable_vars[split2:]
+        with tf.device("/gpu:0"):
+            print("tracing gradients on ", "/gpu:0")
+            gradients = optimizer.get_gradients(agg_loss, dev_vars_0)
+            
+            #tf.print("gradients",[(var.name,grad) for var,grad in zip(dev_vars,gradients)])
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
 
-        @tf.function
-        def train_step(inputs):
+            to_optimize = zip(capped_gradients, dev_vars_0)
             
-            @tf.function
-            def singel_device_train_step(inputs):
-                with tf.GradientTape() as tape:
-                    loss = train_model(inputs)
-                    loss_per_input = loss / tf.cast(batch_size, dtype=tf.float32)
-                
-                trainable_vars = train_model.trainable_variables
-                gradients = tape.gradient(loss_per_input, trainable_vars)
-                capped_gradients, _ = tf.clip_by_global_norm(gradients, 10.)
-                to_optimize = zip(capped_gradients, trainable_vars)
-                optimizer.apply_gradients(to_optimize)
-                return loss_per_input
-                
+            optimizer.apply_gradients(to_optimize)
             
-            per_example_losses = dist_strat.experimental_run_v2(singel_device_train_step, args=(inputs,))
-            return per_example_losses
+        with tf.device("/gpu:1"):
+            print("tracing gradients on ", "/gpu:1")
+            gradients = optimizer.get_gradients(agg_loss, dev_vars_1)
             
-        with dist_strat.scope():
-            for inputs in dist_dataset:
-                step.assign_add(1)
-                if steps < 0 or step > steps:
-                    break
-                loss = train_step(inputs)
-                if step_callbacks:
-                    for callback_step, step_callback in step_callbacks.items():
-                        if isinstance(callback_step,int) and callback_step > 0 and step % callback_step == 0:
+            #tf.print("gradients",[(var.name,grad) for var,grad in zip(dev_vars_1,gradients)])
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+
+            to_optimize = zip(capped_gradients, dev_vars_1)
+            
+            optimizer.apply_gradients(to_optimize)
+            
+        with tf.device("/gpu:3"):
+            print("tracing gradients on ", "/gpu:3")
+            gradients = optimizer.get_gradients(agg_loss, dev_vars_2)
+            
+            #tf.print("gradients",[(var.name,grad) for var,grad in zip(dev_vars_2,gradients)])
+            non_nan_gradients = [tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad) for grad in gradients]
+            capped_gradients, _ = tf.clip_by_global_norm(non_nan_gradients, 10.)
+
+            to_optimize = zip(capped_gradients, dev_vars_2)
+            
+            optimizer.apply_gradients(to_optimize)
+        return loss
+    
+    @tf.function
+    def train_loop(dataset):
+        
+        if init_callback:
+            init_callback(train_model, dataset)
+            
+        for batch in dataset:
+            step.assign_add(1)
+            loss = train_step(batch)
+            if step_callbacks:
+                for callback_step, step_callback in step_callbacks.items():
+                    if isinstance(callback_step,int) and step_callback:
+                        if callback_step > 0 and step % callback_step == 0:
                             step_callback(train_model, loss, step)
         
-    train_loop(dist_dataset)
+    train_loop(dataset)
 
 if __name__ == "__main__":
     main()

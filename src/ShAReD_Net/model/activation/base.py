@@ -6,9 +6,8 @@ class DiscretSigmoid(tf.keras.layers.Layer):
     def __init__(self, name = "DiscretSigmoid", **kwargs):
         super().__init__(name = name, **kwargs)
     
-    @tf.function
-    def call(self, inputs, training=None, **kwargs):
-        super().call(inputs, training=training, **kwargs)
+    @tf.function(experimental_relax_shapes=True)
+    def call(self, inputs, training=None):
         if training:
             activated = self.discret_sigmoid_training(inputs)
         else:
@@ -46,8 +45,8 @@ class DiscretSigmoid_Test(tf.keras.layers.Layer):
         super().__init__(name = name, **kwargs)
     
     @tf.function
-    def call(self, inputs):
-        return discret_sigmoid(inputs)
+    def call(self, inputs, training =None):
+        return discret_sigmoid(inputs, training=training)
 
 dst = DiscretSigmoid_Test()
 

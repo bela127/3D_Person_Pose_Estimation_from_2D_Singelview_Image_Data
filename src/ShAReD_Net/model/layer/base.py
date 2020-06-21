@@ -4,6 +4,9 @@ from enum import IntEnum
 
 import tensorflow as tf
 import tensorflow.keras as keras
+import numpy as np
+
+from ShAReD_Net.configure import config
 
 class BnDoConfReluConfRelu(keras.layers.Layer):
     def __init__(self, filter_count, rate = 0.15, filter_size = [3,3], name = "BnDoConfReluConfRelu", **kwargs):
@@ -12,13 +15,29 @@ class BnDoConfReluConfRelu(keras.layers.Layer):
         self.rate = rate
         self.filter_size = filter_size
         
-        
+    
     def build(self, input_shape):
         print(self.name,input_shape)
-        self.bn = keras.layers.BatchNormalization(input_shape = [None, None, input_shape[-1]])
-        self.do = keras.layers.GaussianDropout(self.rate)
-        self.conv1 = keras.layers.Convolution2D(self.filter_count, self.filter_size, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.conv2 = keras.layers.Convolution2D(self.filter_count, self.filter_size, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.bn = keras.layers.BatchNormalization(input_shape = [None, None, input_shape[-1]],dtype=self.dtype)
+        self.do = keras.layers.GaussianDropout(self.rate,dtype=self.dtype)
+        self.conv1 = keras.layers.Convolution2D(self.filter_count,
+                                                self.filter_size,
+                                                padding='SAME',
+                                                activation=tf.nn.leaky_relu,
+                                                kernel_initializer=tf.initializers.he_normal(),
+                                                bias_initializer=tf.initializers.he_uniform(),
+                                                kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                dtype=self.dtype,
+                                                )
+        self.conv2 = keras.layers.Convolution2D(self.filter_count,
+                                                self.filter_size,
+                                                padding='SAME',
+                                                activation=tf.nn.leaky_relu,
+                                                kernel_initializer=tf.initializers.he_normal(),
+                                                bias_initializer=tf.initializers.he_uniform(),
+                                                kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                dtype=self.dtype,
+                                                )
         super().build(input_shape)
         
     @tf.function
@@ -44,6 +63,7 @@ class DenseBlock(keras.layers.Layer):
         self.rate = rate
         self.filter_size = filter_size
 
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         self.block = BnDoConfReluConfRelu(filter_count = self.filter_count, rate = self.rate, filter_size = self.filter_size)
@@ -60,21 +80,32 @@ class DenseBlock(keras.layers.Layer):
         return config
         
 class DenseModule(keras.layers.Layer):
-    def __init__(self, blocks_count, filter_count, rate = 0.15, filter_size = [3,3], name = "DenseModule", **kwargs):
+    def __init__(self, blocks_count, filter_count, rate = 0.15, filter_size = [3,3], input_depth = 24, name = "DenseModule", **kwargs):
         super().__init__(name = name, **kwargs)
         self.blocks_count = blocks_count
         self.filter_count = filter_count
         self.rate = rate
         self.filter_size = filter_size
-        
+        self.input_depth = input_depth
+    
+    
     def build(self, input_shape):
         print(self.name,input_shape)
-        self.blocks = [DenseBlock(filter_count = self.filter_count, rate = self.rate, filter_size = self.filter_size) for i in range(self.blocks_count)]
+        self.compress = keras.layers.Convolution2D(self.input_depth,
+                                                   kernel_size=1,
+                                                   padding='SAME',
+                                                   activation=tf.nn.leaky_relu,
+                                                   kernel_initializer=tf.initializers.he_normal(),
+                                                   bias_initializer=tf.initializers.he_uniform(),
+                                                   kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                   dtype=self.dtype,
+                                                   )
+        self.blocks = [DenseBlock(filter_count = self.filter_count,rate = self.rate, filter_size = self.filter_size) for i in range(self.blocks_count)]
         super().build(input_shape)
 
     @tf.function
     def call(self, inputs, training=None):
-        prev_block = inputs
+        prev_block = self.compress(inputs)
         for next_block in self.blocks:
             prev_block = next_block(prev_block, training=training)
         return prev_block
@@ -92,12 +123,20 @@ class ShReD(keras.layers.Layer):
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
         
-        
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.dense_m = DenseModule(blocks_count = self.dense_blocks_count, rate = self.do_rate, filter_size = self.dense_filter_size, filter_count = self.dense_filter_count)
-        self.write_res = keras.layers.Convolution2D(res_shape[-1], kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.write_res = keras.layers.Convolution2D(res_shape[-1],
+                                                    kernel_size=1,
+                                                    padding='SAME',
+                                                    activation=tf.nn.leaky_relu,
+                                                    kernel_initializer=tf.initializers.he_normal(),
+                                                    bias_initializer=tf.initializers.he_uniform(),
+                                                    kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                    dtype=self.dtype,
+                                                    )
         super().build(input_shape)
 
     @tf.function
@@ -117,10 +156,19 @@ class Attention(keras.layers.Layer):
     def __init__(self, name = "Attention", **kwargs):
         super().__init__(name = name, **kwargs)     
         
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         ins_shape, att_shape = input_shape
-        self.attention = keras.layers.Convolution2D(ins_shape[-1], kernel_size=1, padding='SAME', activation=tf.nn.sigmoid, kernel_initializer=tf.initializers.glorot_normal(), bias_initializer=tf.initializers.glorot_uniform())
+        self.attention = keras.layers.Convolution2D(ins_shape[-1],
+                                                    kernel_size=1,
+                                                    padding='SAME',
+                                                    activation=tf.nn.sigmoid,
+                                                    kernel_initializer=tf.initializers.glorot_normal(),
+                                                    bias_initializer=tf.initializers.glorot_uniform(),
+                                                    kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                    dtype=self.dtype,
+                                                    )
         super().build(input_shape)
         
     @tf.function
@@ -139,11 +187,20 @@ class ResAttention(keras.layers.Layer):
     def __init__(self, name = "ResAttention", **kwargs):
         super().__init__(name = name, **kwargs)     
         
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.attention_res = Attention()
-        self.read_shc = keras.layers.Convolution2D(res_shape[-1], kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.read_shc = keras.layers.Convolution2D(res_shape[-1],
+                                                   kernel_size=1,
+                                                   padding='SAME',
+                                                   activation=tf.nn.leaky_relu,
+                                                   kernel_initializer=tf.initializers.he_normal(),
+                                                   bias_initializer=tf.initializers.he_uniform(),
+                                                   kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                   dtype=self.dtype,
+                                                   )
         super().build(input_shape)
         
     @tf.function
@@ -166,7 +223,7 @@ class ShAReD(keras.layers.Layer):
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
         
-        
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -193,7 +250,7 @@ class SelfShAReD(keras.layers.Layer):
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
         
-        
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
@@ -215,32 +272,69 @@ class SelfShAReD(keras.layers.Layer):
         return config
     
 class Scale(keras.layers.Layer):
-    def __init__(self, destination_channel = None, name = "Scale", **kwargs):
+    def __init__(self, destination_channel = None, new_shape = None, name = "Scale",**kwargs):
         super().__init__(name = name, **kwargs)
         self.destination_channel = destination_channel
-        
+        if new_shape is None:
+            self.new_shape = None
+        else:
+            print(new_shape)
+            self.new_shape = np.asarray(new_shape,dtype=np.int32)
+    
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         if self.destination_channel is None:
             self.destination_channel = input_shape[-1]
-        self.compress_input = keras.layers.Convolution2D(int(input_shape[-1]/2), kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
-        self.conv = keras.layers.Convolution2D(input_shape[-1], kernel_size=3, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.compress_input = keras.layers.Convolution2D(int(input_shape[-1]/2),
+                                                         kernel_size=1,
+                                                         padding='SAME',
+                                                         activation=tf.nn.leaky_relu,
+                                                         kernel_initializer=tf.initializers.he_normal(),
+                                                         bias_initializer=tf.initializers.he_uniform(),
+                                                         kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                         dtype=self.dtype,
+                                                         )
+        self.conv = keras.layers.Convolution2D(input_shape[-1],
+                                               kernel_size=3,
+                                               padding='SAME',
+                                               activation=tf.nn.leaky_relu,
+                                               kernel_initializer=tf.initializers.he_normal(),
+                                               bias_initializer=tf.initializers.he_uniform(),
+                                               kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                               dtype=self.dtype,
+                                               )
         self.pool = keras.layers.MaxPool2D(pool_size=3,strides=1,padding="SAME")
-        self.compress_output = keras.layers.Convolution2D(self.destination_channel, kernel_size=1, padding='SAME', activation=tf.nn.leaky_relu, kernel_initializer=tf.initializers.he_normal(), bias_initializer=tf.initializers.he_uniform())
+        self.compress_output = keras.layers.Convolution2D(self.destination_channel,
+                                                          kernel_size=1,
+                                                          padding='SAME',
+                                                          activation=tf.nn.leaky_relu,
+                                                          kernel_initializer=tf.initializers.he_normal(),
+                                                          bias_initializer=tf.initializers.he_uniform(),
+                                                          kernel_regularizer=tf.keras.regularizers.l2(config.training.regularization_rate),
+                                                          dtype=self.dtype,
+                                                          )
         super().build(input_shape)
 
-    @tf.function
-    def call(self, inputs, destination_size):
+    @tf.function(experimental_relax_shapes=True)
+    def call(self, inputs, destination_size = None):
         
         compressed_input = self.compress_input(inputs)
         conv = self.conv(compressed_input)
         pool = self.pool(inputs)
         
-        scaled_conv = tf.image.resize(conv, destination_size, preserve_aspect_ratio=True, antialias=True)
-        scaled_pool = tf.image.resize(pool, destination_size, preserve_aspect_ratio=True, antialias=True)
+        if self.new_shape is None:
+            scaled_conv = tf.image.resize(conv, destination_size, antialias=True)
+            scaled_pool = tf.image.resize(pool, destination_size, antialias=True)
+        else:
+            scaled_conv = tf.image.resize(conv, self.new_shape, antialias=True)
+            scaled_pool = tf.image.resize(pool, self.new_shape, antialias=True)
+            scaled_conv.set_shape([None,self.new_shape[0],self.new_shape[1],None])
+            scaled_pool.set_shape([None,self.new_shape[0],self.new_shape[1],None])
         
-        concat = keras.layers.concatenate([scaled_pool, scaled_conv])
+        concat = tf.concat([scaled_pool, scaled_conv], axis = -1)
         compressed_output = self.compress_output(concat)
+                
         return compressed_output
     
     def get_config(self):
@@ -256,27 +350,32 @@ class ScaledShAReD(keras.layers.Layer):
         self.dense_filter_count = dense_filter_count
         self.do_rate = do_rate
         self.dense_filter_size = dense_filter_size
-        
+    
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         res_shape, shc_shape = input_shape
         self.dense_m = DenseModule(blocks_count = self.dense_blocks_count, rate = self.do_rate, filter_size = self.dense_filter_size, filter_count = self.dense_filter_count)
         self.attention = ResAttention()
-        self.scale_up = Scale(destination_channel = res_shape[-1])
-        self.scale_down = Scale()
+        self.scale_up = Scale(destination_channel = res_shape[-1], name="scale_up")
+        self.scale_down = Scale(name="scale_down")
         super().build(input_shape)
         
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         inputs_res, inputs_shc = inputs
+        
         inputs_shc_shape = tf.shape(inputs_shc)
         inputs_res_shape = tf.shape(inputs_res)
+        
         scaled_res = self.scale_down(inputs_res, inputs_shc_shape[1:3])
         attention = self.attention([scaled_res, inputs_shc])
         concat = keras.layers.concatenate([scaled_res, attention])
         dense_m = self.dense_m(concat, training=training)
+             
         scaled_dense = self.scale_up(dense_m, inputs_res_shape[1:3])
-        add_res = keras.layers.add([inputs_res, scaled_dense])
+        
+        add_res = tf.add(inputs_res, scaled_dense)
         return add_res, dense_m
         
     def get_config(self):
@@ -287,6 +386,7 @@ class Merge(keras.layers.Layer):
     def __init__(self, name = "Merge", **kwargs):
         super().__init__(name = name, **kwargs)
         
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         super().build(input_shape)
@@ -333,6 +433,7 @@ class Mix(keras.layers.Layer):
     def __init__(self, name = "Mix", **kwargs):
         super().__init__(name = name, **kwargs)
 
+    
     def build(self, input_shape):
         print(self.name, input_shape)
         input_count = len(input_shape)

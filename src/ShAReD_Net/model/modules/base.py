@@ -14,41 +14,42 @@ class ShAReDHourGlass(keras.layers.Layer):
         
     def build(self, input_shape):
         print(self.name,input_shape)
-        self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.big_shared2 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        res_shape, shc_shape = input_shape
+        self.big_shared1 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared1")
+        self.big_shared2 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared2")
         
-        self.big_normal = base_layer.Scale()
+        self.big_normal = base_layer.Scale(name="big_normal")
         
-        self.normal_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.normal_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.normal_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared1")
+        self.normal_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared2")
 
-        self.normal_medium = base_layer.Scale()
+        self.normal_medium = base_layer.Scale(name="normal_medium")
         
-        self.medium_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.medium_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.medium_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared1")
+        self.medium_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared2")
 
-        self.medium_small = base_layer.Scale()
+        self.medium_small = base_layer.Scale(name="medium_small")
 
-        self.small_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.small_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.small_shared1 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="small_shared1")
+        self.small_shared2 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="small_shared2")
 
-        self.small_medium = base_layer.Scale()
+        self.small_medium = base_layer.Scale(name="small_medium")
 
-        self.medium_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.medium_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.medium_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared3")
+        self.medium_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="medium_shared4")
 
-        self.medium_normal = base_layer.Scale()
+        self.medium_normal = base_layer.Scale(name="medium_normal")
 
-        self.normal_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.normal_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.normal_shared3 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared3")
+        self.normal_shared4 = base_layer.ScaledShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="normal_shared4")
 
-        self.normal_big = base_layer.Scale()
+        self.normal_big = base_layer.Scale(name="normal_big")
 
-        self.big_shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
-        self.big_shared4 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count)
+        self.big_shared3 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared3")
+        self.big_shared4 = base_layer.ShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count, name="big_shared4")
         super().build(input_shape)
     
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         input_res, input_shc = inputs
         
@@ -123,7 +124,7 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         self.combine = list([base_layer.SelfShAReD(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.input_count)])
         super().build(input_shape)
         
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         outs = []
         for ins in inputs: 
@@ -150,22 +151,37 @@ class MultiscaleShAReDStage(keras.layers.Layer):
         return config
     
 class MultiscaleShAReD(keras.layers.Layer):
-    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, name = "MultiscaleShAReD", **kwargs):
+    def __init__(self, stages_count = 3, dense_blocks_count = 2, dense_filter_count = 48, gpus=None, name = "MultiscaleShAReD", **kwargs):
         super().__init__(name = name, **kwargs)
         self.dense_blocks_count = dense_blocks_count
         self.dense_filter_count = dense_filter_count
         self.stages_count = stages_count
-        
+        self.gpus = gpus
+    
     def build(self, input_shape):
         print(self.name,input_shape)
         self.stages = list([MultiscaleShAReDStage(dense_blocks_count=self.dense_blocks_count, dense_filter_count=self.dense_filter_count) for i in range(self.stages_count)])
         super().build(input_shape)
         
-    @tf.function
+    @tf.function(experimental_autograph_options=tf.autograph.experimental.Feature.ALL, experimental_relax_shapes=True)
     def call(self, inputs, training=None):
         outs = inputs
-        for stage in self.stages:
-            outs = stage(outs, training=training)
+        if self.gpus and len(self.gpus) == len(self.stages):
+            for stage, gpu in zip(self.stages,self.gpus):
+                print("stage using", gpu)
+                with tf.device(gpu):
+                    outs = stage(outs, training=training)
+        elif self.gpus and len(self.gpus) == 1:
+            print("high_level using", gpus[0])
+            with tf.device(gpus[0]):
+                for stage in self.stages:
+                    outs = stage(outs, training=training)
+        elif self.gpus:
+            raise IndexError("there should be as many GPUs as stages, a singel GPU or None GPUs for autoselect")
+        else:
+            for stage in self.stages:
+                outs = stage(outs, training=training)
+        
         return outs
         
     def get_config(self):
